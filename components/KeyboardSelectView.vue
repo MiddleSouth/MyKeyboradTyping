@@ -3,14 +3,31 @@
     <div class="container mx-auto p-6 max-w-2xl">
       <h1 class="text-3xl font-bold mb-8">キーボード選択</h1>
 
+      <!-- 説明文 -->
+      <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
+        <p class="mb-2">
+          <strong>既存デバイスを検出:</strong> 既に許可済みのキーボードを表示します。
+        </p>
+        <p>
+          <strong>新規デバイスを追加:</strong> 初回接続時や、許可をまだ与えていないキーボードを追加します。
+        </p>
+      </div>
+
       <!-- デバイス検出ボタン -->
-      <div class="mb-6">
+      <div class="mb-6 flex gap-3">
         <button
           @click="handleDetectKeyboards"
           :disabled="isDetecting"
           class="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg font-medium transition"
         >
-          {{ isDetecting ? 'デバイス検出中...' : 'キーボードを検出' }}
+          {{ isDetecting ? 'デバイス検出中...' : '既存デバイスを検出' }}
+        </button>
+        <button
+          @click="handleRequestDevice"
+          :disabled="isDetecting"
+          class="px-6 py-3 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white rounded-lg font-medium transition"
+        >
+          {{ isDetecting ? 'デバイス追加中...' : '新規デバイスを追加' }}
         </button>
       </div>
 
@@ -90,13 +107,20 @@ import { useKeyboardKeymap } from '../composables/useKeyboardKeymap';
 import type { KeyboardDevice } from '../types/keyboard';
 
 const router = useRouter();
-const { keyboards, isLoading: isDetecting, error, detectKeyboards } = useKeyboardDetector();
+const { keyboards, isLoading: isDetecting, error, detectKeyboards, requestKeyboardSelection } = useKeyboardDetector();
 const { isLoading, fetchKeymap, rawHIDData } = useKeyboardKeymap();
 
 const selectedKeyboard = ref<KeyboardDevice | null>(null);
 
 async function handleDetectKeyboards() {
   await detectKeyboards();
+}
+
+async function handleRequestDevice() {
+  const device = await requestKeyboardSelection();
+  if (device) {
+    selectedKeyboard.value = device;
+  }
 }
 
 function selectKeyboard(keyboard: KeyboardDevice) {

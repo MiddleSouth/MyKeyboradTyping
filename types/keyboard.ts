@@ -3,9 +3,9 @@
  */
 
 /**
- * 接続されているHIDデバイス
+ * キーボードデバイスハンドル（簡易情報）
  */
-export interface HIDDevice {
+export interface KeyboardDeviceHandle {
   vendorId: number;
   productId: number;
   productName: string;
@@ -19,7 +19,7 @@ export interface KeyboardDevice {
   vendorId: number;
   productId: number;
   productName: string;
-  deviceHandle: HIDDevice;
+  deviceHandle: KeyboardDeviceHandle;
   isConnected: boolean;
 }
 
@@ -34,4 +34,20 @@ export interface KeymapData {
   layers: {
     [layerNumber: number]: number[][];  // [row][col] = キーコード
   };
+}
+
+/**
+ * VIA経由で取得した生のキーマップデータ
+ */
+export interface RawKeymapData {
+  vendorId: number;
+  productId: number;
+  productName: string;
+  rows: number;
+  cols: number;
+  layerCount: number;
+  keymap_by_layer: {
+    [layerNumber: number]: number[][];  // [row][col] = キーコード
+  };
+  timestamp: string;
 }

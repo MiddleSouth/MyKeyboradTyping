@@ -1,5 +1,6 @@
 import { ref, readonly } from 'vue';
-import type { KeyboardDevice, HIDDevice } from '../types/keyboard';
+import type { KeyboardDevice, KeyboardDeviceHandle } from '../types/keyboard';
+import type { HIDDevice } from '../types/webhid';
 import { useKeyboardState } from './useKeyboardState';
 import { VIA_USAGE_PAGE, VIA_USAGE } from '../constants/via';
 
@@ -15,7 +16,7 @@ export function useKeyboardDetector() {
    * デバイスがVIA対応キーボードであるかを判定
    * VIA専用コレクションまたは通常のキーボードコレクションを持つデバイスを検出
    */
-  function isVIASupportedDevice(device: any): boolean {
+  function isVIASupportedDevice(device: HIDDevice): boolean {
     // collections を確認してVIA対応かどうかを判定
     if (!device.collections || device.collections.length === 0) {
       return false;
@@ -64,11 +65,11 @@ export function useKeyboardDetector() {
    */
   async function detectKeyboards(): Promise<KeyboardDevice[]> {
     // WebHID APIのサポート確認
-    const hid = (navigator as any).hid;
-    if (!hid) {
+    if (!navigator.hid) {
       setError('このブラウザはWebHID APIに対応していません。Chrome/Edgeを使用してください。');
       return [];
     }
+    const hid = navigator.hid;
 
     isLoading.value = true;
 
@@ -77,7 +78,7 @@ export function useKeyboardDetector() {
       const devices = await hid.getDevices();
       
       console.log('[useKeyboardDetector] 検出されたデバイス数:', devices.length);
-      devices.forEach((device: any, index: number) => {
+      devices.forEach((device, index) => {
         console.log(`[useKeyboardDetector] Device ${index}:`, {
           vendorId: `0x${device.vendorId.toString(16).toUpperCase().padStart(4, '0')}`,
           productId: `0x${device.productId.toString(16).toUpperCase().padStart(4, '0')}`,
@@ -94,11 +95,11 @@ export function useKeyboardDetector() {
       }
 
       // VIA対応キーボードのみをフィルタリング
-      const keyboardDevices = devices.filter((device: any) => isVIASupportedDevice(device));
+      const keyboardDevices = devices.filter(isVIASupportedDevice);
       
       console.log('[useKeyboardDetector] VIA対応キーボードデバイス数:', keyboardDevices.length);
 
-      const detectedKeyboards: KeyboardDevice[] = keyboardDevices.map((device: any) => {
+      const detectedKeyboards: KeyboardDevice[] = keyboardDevices.map((device) => {
         return {
           vendorId: device.vendorId,
           productId: device.productId,
@@ -126,7 +127,7 @@ export function useKeyboardDetector() {
       }
 
       // デバイス情報を再取得（opened状態を更新）
-      const detectedKeyboards2: KeyboardDevice[] = keyboardDevices.map((device: any) => {
+      const detectedKeyboards2: KeyboardDevice[] = keyboardDevices.map((device) => {
         return {
           vendorId: device.vendorId,
           productId: device.productId,
@@ -147,8 +148,8 @@ export function useKeyboardDetector() {
       console.log('[useKeyboardDetector] 変換後のキーボード数:', uniqueKeyboards.length);
       keyboards.value = uniqueKeyboards;
       return uniqueKeyboards;
-    } catch (err: any) {
-      const errorMsg = err?.message || 'キーボード検出中にエラーが発生しました';
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'キーボード検出中にエラーが発生しました';
       setError(errorMsg);
       keyboards.value = [];
       console.error('[useKeyboardDetector] Error detecting keyboards:', err);
@@ -162,11 +163,11 @@ export function useKeyboardDetector() {
    * ユーザーに新しいキーボードを選択させる
    */
   async function requestKeyboardSelection(): Promise<KeyboardDevice | null> {
-    const hid = (navigator as any).hid;
-    if (!hid) {
+    if (!navigator.hid) {
       setError('このブラウザはWebHID APIに対応していません。');
       return null;
     }
+    const hid = navigator.hid;
 
     try {
       console.log('[useKeyboardDetector] ユーザーにVIA対応キーボード選択ダイアログを表示');
@@ -217,9 +218,9 @@ export function useKeyboardDetector() {
       setSelectedKeyboard(selectedKeyboard);
 
       return selectedKeyboard;
-    } catch (err: any) {
+    } catch (err) {
       console.error('[useKeyboardDetector] Error requesting keyboard:', err);
-      if (err.name !== 'NotAllowedError') {
+      if (err instanceof Error && err.name !== 'NotAllowedError') {
         setError('キーボード選択中にエラーが発生しました');
       }
       return null;

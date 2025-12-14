@@ -1,5 +1,6 @@
 import { ref, readonly } from 'vue';
-import type { KeyboardDevice, KeymapData } from '../types/keyboard';
+import type { KeyboardDevice, KeymapData, RawKeymapData } from '../types/keyboard';
+import type { HIDDevice, HIDInputReportEvent } from '../types/webhid';
 import { useKeyboardState } from './useKeyboardState';
 import { 
   VIA_USAGE_PAGE, 
@@ -17,7 +18,7 @@ export function useKeyboardKeymap() {
   const { setError } = useKeyboardState();
   const keymapData = ref<KeymapData | null>(null);
   const isLoading = ref(false);
-  const rawHIDData = ref<any>(null);
+  const rawHIDData = ref<RawKeymapData | null>(null);
 
   /**
    * 選択されたキーボードからキーマップを取得
@@ -26,15 +27,15 @@ export function useKeyboardKeymap() {
     isLoading.value = true;
 
     try {
-      const hid = (navigator as any).hid;
-      if (!hid) {
+      if (!navigator.hid) {
         throw new Error('WebHID APIが利用できません');
       }
+      const hid = navigator.hid;
 
       // すべてのHIDデバイスを取得（同じ物理デバイスが複数のインターフェースとして現れる）
       const devices = await hid.getDevices();
       console.log('[useKeyboardKeymap] すべてのHIDデバイス:');
-      devices.forEach((device: any, index: number) => {
+      devices.forEach((device, index) => {
         console.log(`  デバイス ${index}:`, {
           productName: device.productName,
           vendorId: `0x${device.vendorId.toString(16).padStart(4, '0')}`,
@@ -43,7 +44,7 @@ export function useKeyboardKeymap() {
           collections: device.collections?.length || 0,
         });
         if (device.collections) {
-          device.collections.forEach((collection: any, colIndex: number) => {
+          device.collections.forEach((collection, colIndex) => {
             console.log(`    コレクション ${colIndex}:`, {
               usagePage: `0x${collection.usagePage?.toString(16).padStart(4, '0')}`,
               usage: `0x${collection.usage?.toString(16).padStart(2, '0')}`,
@@ -56,7 +57,7 @@ export function useKeyboardKeymap() {
 
       // 同じvendorId/productIdを持つすべてのデバイスを取得
       const matchingDevices = devices.filter(
-        (device: any) =>
+        (device) =>
           device.vendorId === keyboard.vendorId &&
           device.productId === keyboard.productId
       );
@@ -68,16 +69,16 @@ export function useKeyboardKeymap() {
       console.log('[useKeyboardKeymap] マッチするデバイス数:', matchingDevices.length);
 
       // VIA対応のコレクションを持つデバイスを優先的に選択
-      let selectedDevice = matchingDevices.find((device: any) =>
-        device.collections?.some((c: any) => 
+      let selectedDevice = matchingDevices.find((device) =>
+        device.collections?.some((c) => 
           c.usagePage === VIA_USAGE_PAGE && c.usage === VIA_USAGE
         )
       );
 
       // VIA対応デバイスがなければ、outputReportsを持つデバイスを選択
       if (!selectedDevice) {
-        selectedDevice = matchingDevices.find((device: any) =>
-          device.collections?.some((c: any) => 
+        selectedDevice = matchingDevices.find((device) =>
+          device.collections?.some((c) => 
             c.outputReports && c.outputReports.length > 0
           )
         );
@@ -108,8 +109,8 @@ export function useKeyboardKeymap() {
       keymapData.value = keymap;
 
       return keymap;
-    } catch (err: any) {
-      const errorMsg = err?.message || 'キーマップ取得中にエラーが発生しました';
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'キーマップ取得中にエラーが発生しました';
       setError(errorMsg);
       console.error('Error fetching keymap:', err);
       return null;
@@ -123,7 +124,7 @@ export function useKeyboardKeymap() {
    * 
    * Remapのキーマップ取得フローに基づく実装
    */
-  async function getKeymapViaVIA(device: any): Promise<any> {
+  async function getKeymapViaVIA(device: HIDDevice): Promise<RawKeymapData> {
     try {
       console.log('[useKeyboardKeymap] VIA プロトコルでキーマップ取得を開始');
       console.log('[useKeyboardKeymap] デバイス情報:', {
@@ -135,7 +136,7 @@ export function useKeyboardKeymap() {
       // デバッグ: すべてのコレクション情報を出力
       console.log('[useKeyboardKeymap] すべてのコレクション情報:');
       if (device.collections) {
-        device.collections.forEach((collection: any, index: number) => {
+        device.collections.forEach((collection, index) => {
           console.log(`  コレクション ${index}:`, {
             usagePage: `0x${collection.usagePage?.toString(16).padStart(4, '0')}`,
             usage: `0x${collection.usage?.toString(16).padStart(2, '0')}`,
@@ -148,7 +149,7 @@ export function useKeyboardKeymap() {
 
       // VIA対応のコレクションを探す（優先）
       let targetCollection = device.collections?.find(
-        (c: any) => c.usagePage === VIA_USAGE_PAGE && c.usage === VIA_USAGE
+        (c) => c.usagePage === VIA_USAGE_PAGE && c.usage === VIA_USAGE
       );
 
       if (targetCollection) {
@@ -157,7 +158,7 @@ export function useKeyboardKeymap() {
         // VIAコレクションがない場合は、通常のキーボードコレクションを使用
         // QMKのVIAサポートは通常のキーボードエンドポイント経由でも動作する
         targetCollection = device.collections?.find(
-          (c: any) => c.usagePage === 0x01 && c.usage === 0x06
+          (c) => c.usagePage === 0x01 && c.usage === 0x06
         );
         
         if (targetCollection) {
@@ -185,8 +186,8 @@ export function useKeyboardKeymap() {
             reject(new Error(`レスポンスタイムアウト: ${key}`));
           }, 5000);  // 5秒に延長（Remapでは長めに設定）
 
-          const listener = (event: any) => {
-            const data = event.data as DataView;
+          const listener = (event: HIDInputReportEvent) => {
+            const data = event.data;
             const buffer = new Uint8Array(data.buffer);
             
             console.log(`[useKeyboardKeymap] レスポンス受信 (${key}):`, Array.from(buffer.slice(0, 10)));
@@ -243,7 +244,7 @@ export function useKeyboardKeymap() {
       console.log('[useKeyboardKeymap] マトリクスサイズ（固定値）: rows=', rows, 'cols=', cols);
 
       // 4. キーマップデータを取得（Remapと同じバッファ読み込み方式）
-      const keymapByLayer: any = {};
+      const keymapByLayer: { [layerNumber: number]: number[][] } = {};
       for (let layer = 0; layer < layerCount; layer++) {
         console.log(`[useKeyboardKeymap] ステップ ${3 + layer}: レイヤー ${layer} のキーマップ取得`);
         
@@ -284,7 +285,7 @@ export function useKeyboardKeymap() {
         }
         
         // バイト配列をキーマップに変換
-        const layerKeymap: any[][] = [];
+        const layerKeymap: number[][] = [];
         let dataIndex = 0;
         for (let row = 0; row < rows; row++) {
           layerKeymap[row] = [];
@@ -299,7 +300,7 @@ export function useKeyboardKeymap() {
       }
 
       // 結果をまとめる
-      const result = {
+      const result: RawKeymapData = {
         vendorId: device.vendorId,
         productId: device.productId,
         productName: device.productName,
@@ -312,7 +313,7 @@ export function useKeyboardKeymap() {
 
       console.log('[useKeyboardKeymap] キーマップ取得完了:', result);
       return result;
-    } catch (err: any) {
+    } catch (err) {
       console.error('[useKeyboardKeymap] VIA キーマップ取得エラー:', err);
       throw err;
     }
@@ -327,7 +328,7 @@ export function useKeyboardKeymap() {
    * 
    * 注意: レスポンス取得は inputreport イベントリスナーで行う
    */
-  async function sendVIACommand(device: any, command: number[], reportId: number = 0): Promise<any> {
+  async function sendVIACommand(device: HIDDevice, command: number[], reportId: number = 0): Promise<{ success: boolean }> {
     try {
       // コマンドデータのみを含むバッファ
       const dataBuffer = new Uint8Array(VIA_REPORT_SIZE);
@@ -364,7 +365,7 @@ export function useKeyboardKeymap() {
       // 注: レスポンスは inputreport イベントリスナーで取得される
       // このメソッド呼び出し側でレスポンス待機を処理する
       return { success: true };
-    } catch (err: any) {
+    } catch (err) {
       console.error('[useKeyboardKeymap] VIA コマンド送信エラー:', err);
       throw err;
     }
@@ -373,7 +374,7 @@ export function useKeyboardKeymap() {
   /**
    * 生データからキーマップを解析
    */
-  function parseKeymapData(rawData: any, keyboard: KeyboardDevice): KeymapData {
+  function parseKeymapData(rawData: RawKeymapData, keyboard: KeyboardDevice): KeymapData {
     // 簡易実装：スケルトンデータを返す
     return {
       keyboard: {

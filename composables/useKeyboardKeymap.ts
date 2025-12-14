@@ -1,5 +1,6 @@
 import { ref, readonly } from 'vue';
 import type { KeyboardDevice, KeymapData } from '../types/keyboard';
+import { useKeyboardState } from './useKeyboardState';
 
 // VIA プロトコルの定義 (Remapと同じ)
 const VIA_USAGE_PAGE = 0xff60;
@@ -20,19 +21,16 @@ const id_switch_matrix_state = 0x03;
  * WebHIDを通じてキーマップを取得するComposable
  */
 export function useKeyboardKeymap() {
+  const { setError } = useKeyboardState();
   const keymapData = ref<KeymapData | null>(null);
   const isLoading = ref(false);
-  const error = ref<string | null>(null);
   const rawHIDData = ref<any>(null);
-  const selectedKeyboard = ref<KeyboardDevice | null>(null);
 
   /**
    * 選択されたキーボードからキーマップを取得
    */
   async function fetchKeymap(keyboard: KeyboardDevice): Promise<KeymapData | null> {
     isLoading.value = true;
-    error.value = null;
-    selectedKeyboard.value = keyboard; // キーボード情報を保存
 
     try {
       const hid = (navigator as any).hid;
@@ -119,7 +117,7 @@ export function useKeyboardKeymap() {
       return keymap;
     } catch (err: any) {
       const errorMsg = err?.message || 'キーマップ取得中にエラーが発生しました';
-      error.value = errorMsg;
+      setError(errorMsg);
       console.error('Error fetching keymap:', err);
       return null;
     } finally {
@@ -411,9 +409,7 @@ export function useKeyboardKeymap() {
   return {
     keymapData: readonly(keymapData),
     isLoading: readonly(isLoading),
-    error: readonly(error),
     rawHIDData: readonly(rawHIDData),
-    selectedKeyboard: readonly(selectedKeyboard),
     fetchKeymap,
     getRawDataForDisplay,
   };

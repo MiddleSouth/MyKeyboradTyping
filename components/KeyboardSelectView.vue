@@ -57,28 +57,21 @@
         </div>
       </div>
 
-      <!-- デバッグ情報 -->
-      <div v-if="debugInfo" class="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-lg">
-        <h2 class="text-lg font-bold mb-3">デバッグ情報</h2>
-        <pre class="text-sm overflow-auto">{{ debugInfo }}</pre>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useKeyboardDetector } from '../composables/useKeyboardDetector';
 import { useKeyboardKeymap } from '../composables/useKeyboardKeymap';
-import type { KeyboardDevice } from '../types/keyboard';
+import { useKeyboardState } from '../composables/useKeyboardState';
 
 const router = useRouter();
-const { keyboards, isLoading: isDetecting, error, detectKeyboards, requestKeyboardSelection } = useKeyboardDetector();
+const { keyboards, isLoading: isDetecting, requestKeyboardSelection } = useKeyboardDetector();
 const { isLoading, fetchKeymap, rawHIDData } = useKeyboardKeymap();
-
-const selectedKeyboard = ref<KeyboardDevice | null>(null);
-const debugInfo = ref<string>('');
+const { selectedKeyboard, error, clearError } = useKeyboardState();
 
 const rawDataDisplay = computed(() => {
   if (!rawHIDData.value) {
@@ -88,44 +81,25 @@ const rawDataDisplay = computed(() => {
 });
 
 async function handleSelectAndFetch() {
-  try {
-    // キーボード選択ダイアログを表示
-    const device = await requestKeyboardSelection();
-    
-    if (!device) {
-      debugInfo.value = 'キーボードが選択されませんでした';
-      return;
-    }
-    
-    // 選択されたキーボードをセット
-    selectedKeyboard.value = device;
-    
-    // 自動的にキーマップを取得
-    await handleContinue();
-  } catch (err) {
-    debugInfo.value = `❌ エラーが発生しました\n${err}`;
-    console.error('キーボード選択・接続エラー:', err);
+  // ユーザーアクション時に前回のエラーをクリア
+  clearError();
+  
+  // キーボード選択ダイアログを表示
+  const device = await requestKeyboardSelection();
+  
+  if (!device) {
+    return;
   }
+  
+  // 自動的にキーマップを取得
+  await handleContinue();
 }
 
 async function handleContinue() {
   if (!selectedKeyboard.value) return;
 
-  try {
-    debugInfo.value = `キーマップ取得中...\nキーボード: ${selectedKeyboard.value.productName}\nVID: 0x${selectedKeyboard.value.vendorId.toString(16).toUpperCase().padStart(4, '0')}\nPID: 0x${selectedKeyboard.value.productId.toString(16).toUpperCase().padStart(4, '0')}`;
-
-    // キーマップを取得
-    const keymap = await fetchKeymap(selectedKeyboard.value);
-
-    if (keymap) {
-      debugInfo.value = `✅ キーマップ取得成功\n\nキーボード: ${selectedKeyboard.value.productName}\nVID: 0x${selectedKeyboard.value.vendorId.toString(16).toUpperCase().padStart(4, '0')}\nPID: 0x${selectedKeyboard.value.productId.toString(16).toUpperCase().padStart(4, '0')}\n\n取得時刻: ${new Date().toLocaleString('ja-JP')}`;
-    } else {
-      debugInfo.value = `❌ キーマップ取得失敗\n詳細はコンソールを確認してください`;
-    }
-  } catch (err) {
-    debugInfo.value = `❌ エラーが発生しました\n${err}`;
-    console.error('キーマップ取得エラー:', err);
-  }
+  // キーマップを取得（エラーはcomposable側で処理）
+  await fetchKeymap(selectedKeyboard.value);
 }
 </script>
 

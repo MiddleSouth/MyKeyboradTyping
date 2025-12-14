@@ -1,5 +1,6 @@
 import { ref, readonly } from 'vue';
 import type { KeyboardDevice, HIDDevice } from '../types/keyboard';
+import { useKeyboardState } from './useKeyboardState';
 
 // VIA対応デバイスのUSAGE PAGE と USAGE (Remapと同じ)
 const VIA_USAGE_PAGE = 0xff60;  // VIA Raw HID
@@ -9,9 +10,9 @@ const VIA_USAGE = 0x61;          // VIA Protocol
  * WebHID APIを使用してキーボードを検出するComposable
  */
 export function useKeyboardDetector() {
+  const { setError, setSelectedKeyboard } = useKeyboardState();
   const keyboards = ref<KeyboardDevice[]>([]);
   const isLoading = ref(false);
-  const error = ref<string | null>(null);
 
   /**
    * デバイスがVIA対応キーボードであるかを判定
@@ -68,12 +69,11 @@ export function useKeyboardDetector() {
     // WebHID APIのサポート確認
     const hid = (navigator as any).hid;
     if (!hid) {
-      error.value = 'このブラウザはWebHID APIに対応していません。Chrome/Edgeを使用してください。';
+      setError('このブラウザはWebHID APIに対応していません。Chrome/Edgeを使用してください。');
       return [];
     }
 
     isLoading.value = true;
-    error.value = null;
 
     try {
       // 既に許可されているデバイスを取得
@@ -152,7 +152,7 @@ export function useKeyboardDetector() {
       return uniqueKeyboards;
     } catch (err: any) {
       const errorMsg = err?.message || 'キーボード検出中にエラーが発生しました';
-      error.value = errorMsg;
+      setError(errorMsg);
       keyboards.value = [];
       console.error('[useKeyboardDetector] Error detecting keyboards:', err);
       return [];
@@ -167,7 +167,7 @@ export function useKeyboardDetector() {
   async function requestKeyboardSelection(): Promise<KeyboardDevice | null> {
     const hid = (navigator as any).hid;
     if (!hid) {
-      error.value = 'このブラウザはWebHID APIに対応していません。';
+      setError('このブラウザはWebHID APIに対応していません。');
       return null;
     }
 
@@ -216,11 +216,14 @@ export function useKeyboardDetector() {
         keyboards.value.push(selectedKeyboard);
       }
 
+      // グローバル状態に選択されたキーボードを設定
+      setSelectedKeyboard(selectedKeyboard);
+
       return selectedKeyboard;
     } catch (err: any) {
       console.error('[useKeyboardDetector] Error requesting keyboard:', err);
       if (err.name !== 'NotAllowedError') {
-        error.value = 'キーボード選択中にエラーが発生しました';
+        setError('キーボード選択中にエラーが発生しました');
       }
       return null;
     }
@@ -229,7 +232,6 @@ export function useKeyboardDetector() {
   return {
     keyboards: readonly(keyboards),
     isLoading: readonly(isLoading),
-    error: readonly(error),
     detectKeyboards,
     requestKeyboardSelection,
   };

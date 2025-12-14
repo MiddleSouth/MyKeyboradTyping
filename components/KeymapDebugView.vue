@@ -93,7 +93,7 @@ import { useKeyboardKeymap } from '../composables/useKeyboardKeymap';
 const router = useRouter();
 const route = useRoute();
 const { keyboards } = useKeyboardDetector();
-const { keymapData, isLoading, error, rawHIDData, getRawDataForDisplay } = useKeyboardKeymap();
+const { keymapData, isLoading, error, rawHIDData, getRawDataForDisplay, selectedKeyboard } = useKeyboardKeymap();
 
 const vendorId = computed(() => parseInt(String(route.params.vendorId), 10));
 const productId = computed(() => parseInt(String(route.params.productId), 10));
@@ -102,6 +102,12 @@ const vendorIdHex = computed(() => '0x' + vendorId.value.toString(16).toUpperCas
 const productIdHex = computed(() => '0x' + productId.value.toString(16).toUpperCase().padStart(4, '0'));
 
 const keyboardName = computed(() => {
+  // まず composable から保存されたキーボード情報を取得
+  if (selectedKeyboard.value) {
+    return selectedKeyboard.value.productName;
+  }
+  
+  // その次に keyboards リストから検索
   const keyboard = keyboards.value.find(
     (kb) => kb.vendorId === vendorId.value && kb.productId === productId.value
   );
@@ -116,9 +122,44 @@ function handleBack() {
   router.push('/');
 }
 
-onMounted(() => {
+onMounted(async () => {
   console.log('キーマップデバッグ画面マウント');
   console.log('VID:', vendorId.value, 'PID:', productId.value);
+  console.log('selectedKeyboard:', selectedKeyboard.value);
+
+  // キーボード情報が見つからない場合は、WebHID APIから直接取得を試みる
+  if (!keyboardName.value || keyboardName.value === 'Unknown Keyboard') {
+    try {
+      const hid = (navigator as any).hid;
+      if (hid) {
+        const devices = await hid.getDevices();
+        console.log('[KeymapDebugView] 取得されたデバイス数:', devices.length);
+        
+        const device = devices.find(
+          (d: any) => d.vendorId === vendorId.value && d.productId === productId.value
+        );
+        
+        if (device) {
+          console.log('[KeymapDebugView] デバイス再取得成功:', {
+            productName: device.productName,
+            opened: device.opened,
+          });
+          
+          // デバイスが閉じられている場合は開く
+          if (!device.opened) {
+            try {
+              await device.open();
+              console.log('[KeymapDebugView] デバイスを開きました');
+            } catch (err) {
+              console.error('[KeymapDebugView] デバイスオープンエラー:', err);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[KeymapDebugView] デバイス再取得エラー:', err);
+    }
+  }
 });
 </script>
 

@@ -1,9 +1,9 @@
 import { ref, readonly } from 'vue';
 import type { KeyboardDevice, HIDDevice } from '../types/keyboard';
 
-// キーボードのUSAGE PAGE と USAGE
-const KEYBOARD_USAGE_PAGE = 0x01;  // Generic Desktop
-const KEYBOARD_USAGE = 0x06;        // Keyboard
+// VIA対応デバイスのUSAGE PAGE と USAGE (Remapと同じ)
+const VIA_USAGE_PAGE = 0xff60;  // VIA Raw HID
+const VIA_USAGE = 0x61;          // VIA Protocol
 
 /**
  * WebHID APIを使用してキーボードを検出するComposable
@@ -14,17 +14,28 @@ export function useKeyboardDetector() {
   const error = ref<string | null>(null);
 
   /**
-   * デバイスがキーボードであるかを判定
+   * デバイスがVIA対応キーボードであるかを判定
+   * VIA専用コレクションまたは通常のキーボードコレクションを持つデバイスを検出
    */
-  function isKeyboardDevice(device: any): boolean {
-    // collections を確認してキーボードかどうかを判定
+  function isVIASupportedDevice(device: any): boolean {
+    // collections を確認してVIA対応かどうかを判定
     if (!device.collections || device.collections.length === 0) {
       return false;
     }
 
-    // キーボードの場合、usagePageが0x01, usageが0x06
+    // 優先順位1: VIA専用コレクション (usagePage: 0xff60, usage: 0x61)
     for (const collection of device.collections) {
-      if (collection.usagePage === KEYBOARD_USAGE_PAGE && collection.usage === KEYBOARD_USAGE) {
+      if (collection.usagePage === VIA_USAGE_PAGE && collection.usage === VIA_USAGE) {
+        console.log('[useKeyboardDetector] VIA専用コレクション発見:', device.productName);
+        return true;
+      }
+    }
+
+    // 優先順位2: 通常のキーボードコレクション (usagePage: 0x01, usage: 0x06)
+    // QMKのVIAサポートは通常のキーボードエンドポイント経由でも動作する
+    for (const collection of device.collections) {
+      if (collection.usagePage === 0x01 && collection.usage === 0x06) {
+        console.log('[useKeyboardDetector] 通常のキーボードコレクション発見（VIA互換の可能性あり）:', device.productName);
         return true;
       }
     }
@@ -85,10 +96,10 @@ export function useKeyboardDetector() {
         return [];
       }
 
-      // キーボードのみをフィルタリング
-      const keyboardDevices = devices.filter((device: any) => isKeyboardDevice(device));
+      // VIA対応キーボードのみをフィルタリング
+      const keyboardDevices = devices.filter((device: any) => isVIASupportedDevice(device));
       
-      console.log('[useKeyboardDetector] キーボードデバイス数:', keyboardDevices.length);
+      console.log('[useKeyboardDetector] VIA対応キーボードデバイス数:', keyboardDevices.length);
 
       const detectedKeyboards: KeyboardDevice[] = keyboardDevices.map((device: any) => {
         return {
@@ -105,8 +116,36 @@ export function useKeyboardDetector() {
         };
       });
 
+      // デバイスを開く（許可がある場合）
+      for (const device of keyboardDevices) {
+        try {
+          if (!device.opened) {
+            await device.open();
+            console.log(`[useKeyboardDetector] デバイスを開きました: ${device.productName}`);
+          }
+        } catch (err) {
+          console.error(`[useKeyboardDetector] デバイスオープンエラー:`, err);
+        }
+      }
+
+      // デバイス情報を再取得（opened状態を更新）
+      const detectedKeyboards2: KeyboardDevice[] = keyboardDevices.map((device: any) => {
+        return {
+          vendorId: device.vendorId,
+          productId: device.productId,
+          productName: device.productName || `Unknown Device (${device.vendorId}:${device.productId})`,
+          deviceHandle: {
+            vendorId: device.vendorId,
+            productId: device.productId,
+            productName: device.productName || `Unknown Device`,
+            opened: device.opened,
+          },
+          isConnected: device.opened,
+        };
+      });
+
       // 重複を削除
-      const uniqueKeyboards = deduplicateDevices(detectedKeyboards);
+      const uniqueKeyboards = deduplicateDevices(detectedKeyboards2);
 
       console.log('[useKeyboardDetector] 変換後のキーボード数:', uniqueKeyboards.length);
       keyboards.value = uniqueKeyboards;
@@ -133,11 +172,12 @@ export function useKeyboardDetector() {
     }
 
     try {
-      console.log('[useKeyboardDetector] ユーザーにキーボード選択ダイアログを表示');
-      // キーボードのみをフィルタ
+      console.log('[useKeyboardDetector] ユーザーにVIA対応キーボード選択ダイアログを表示');
+      // VIA対応キーボードまたは通常のキーボードをフィルタ
       const devices = await hid.requestDevice({ 
         filters: [
-          { usagePage: KEYBOARD_USAGE_PAGE, usage: KEYBOARD_USAGE }
+          { usagePage: VIA_USAGE_PAGE, usage: VIA_USAGE },      // VIA専用コレクション
+          { usagePage: 0x01, usage: 0x06 }                      // 通常のキーボードコレクション
         ]
       });
 

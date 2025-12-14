@@ -92,8 +92,22 @@
           :disabled="!selectedKeyboard || isLoading"
           class="px-6 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white rounded-lg font-medium transition flex-1"
         >
-          {{ isLoading ? 'キーマップ取得中...' : '次へ進む' }}
+          {{ isLoading ? 'キーマップ取得中...' : 'キーマップ取得' }}
         </button>
+      </div>
+
+      <!-- 生データ表示 -->
+      <div v-if="rawDataDisplay" class="mt-6">
+        <h2 class="text-xl font-bold mb-4">取得した生データ</h2>
+        <div class="bg-gray-900 p-4 rounded-lg overflow-x-auto">
+          <pre class="text-green-400 font-mono text-sm">{{ rawDataDisplay }}</pre>
+        </div>
+      </div>
+
+      <!-- デバッグ情報 -->
+      <div v-if="debugInfo" class="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-lg">
+        <h2 class="text-lg font-bold mb-3">デバッグ情報</h2>
+        <pre class="text-sm overflow-auto">{{ debugInfo }}</pre>
       </div>
     </div>
   </div>
@@ -111,6 +125,14 @@ const { keyboards, isLoading: isDetecting, error, detectKeyboards, requestKeyboa
 const { isLoading, fetchKeymap, rawHIDData } = useKeyboardKeymap();
 
 const selectedKeyboard = ref<KeyboardDevice | null>(null);
+const debugInfo = ref<string>('');
+
+const rawDataDisplay = computed(() => {
+  if (!rawHIDData.value) {
+    return '';
+  }
+  return JSON.stringify(rawHIDData.value, null, 2);
+});
 
 async function handleDetectKeyboards() {
   await detectKeyboards();
@@ -130,13 +152,21 @@ function selectKeyboard(keyboard: KeyboardDevice) {
 async function handleContinue() {
   if (!selectedKeyboard.value) return;
 
-  // キーマップを取得
-  const keymap = await fetchKeymap(selectedKeyboard.value);
+  try {
+    debugInfo.value = `キーマップ取得中...\nキーボード: ${selectedKeyboard.value.productName}\nVID: 0x${selectedKeyboard.value.vendorId.toString(16).toUpperCase().padStart(4, '0')}\nPID: 0x${selectedKeyboard.value.productId.toString(16).toUpperCase().padStart(4, '0')}`;
 
-  // デバッグ画面に遷移（キーマップを表示するため）
-  await router.push({
-    path: `/keymap-debug/${selectedKeyboard.value.vendorId}/${selectedKeyboard.value.productId}`,
-  });
+    // キーマップを取得
+    const keymap = await fetchKeymap(selectedKeyboard.value);
+
+    if (keymap) {
+      debugInfo.value = `✅ キーマップ取得成功\n\nキーボード: ${selectedKeyboard.value.productName}\nVID: 0x${selectedKeyboard.value.vendorId.toString(16).toUpperCase().padStart(4, '0')}\nPID: 0x${selectedKeyboard.value.productId.toString(16).toUpperCase().padStart(4, '0')}\n\n取得時刻: ${new Date().toLocaleString('ja-JP')}`;
+    } else {
+      debugInfo.value = `❌ キーマップ取得失敗\n詳細はコンソールを確認してください`;
+    }
+  } catch (err) {
+    debugInfo.value = `❌ エラーが発生しました\n${err}`;
+    console.error('キーマップ取得エラー:', err);
+  }
 }
 </script>
 

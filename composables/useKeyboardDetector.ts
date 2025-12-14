@@ -1,10 +1,7 @@
 import { ref, readonly } from 'vue';
 import type { KeyboardDevice, HIDDevice } from '../types/keyboard';
 import { useKeyboardState } from './useKeyboardState';
-
-// VIA対応デバイスのUSAGE PAGE と USAGE (Remapと同じ)
-const VIA_USAGE_PAGE = 0xff60;  // VIA Raw HID
-const VIA_USAGE = 0x61;          // VIA Protocol
+import { VIA_USAGE_PAGE, VIA_USAGE } from '../constants/via';
 
 /**
  * WebHID APIを使用してキーボードを検出するComposable

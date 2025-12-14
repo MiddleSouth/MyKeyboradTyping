@@ -35,12 +35,3 @@ export interface KeymapData {
     [layerNumber: number]: number[][];  // [row][col] = キーコード
   };
 }
-
-/**
- * キーマップ取得時のレスポンス
- */
-export interface KeymapResponse {
-  success: boolean;
-  data?: KeymapData;
-  error?: string;
-}

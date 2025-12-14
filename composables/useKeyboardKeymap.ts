@@ -1,21 +1,14 @@
 import { ref, readonly } from 'vue';
 import type { KeyboardDevice, KeymapData } from '../types/keyboard';
 import { useKeyboardState } from './useKeyboardState';
-
-// VIA プロトコルの定義 (Remapと同じ)
-const VIA_USAGE_PAGE = 0xff60;
-const VIA_USAGE = 0x61;
-
-// VIA Command IDs (Remap の Commands.ts に基づく)
-const id_get_protocol_version = 0x01;
-const id_get_keyboard_value = 0x02;
-const id_dynamic_keymap_get_layer_count = 0x11;
-const id_dynamic_keymap_get_buffer = 0x12;
-
-// Keyboard value IDs
-const id_uptime = 0x01;
-const id_layout_options = 0x02;
-const id_switch_matrix_state = 0x03;
+import { 
+  VIA_USAGE_PAGE, 
+  VIA_USAGE, 
+  VIA_COMMAND,
+  MIN_VIA_PROTOCOL_VERSION,
+  VIA_BUFFER_CHUNK_SIZE,
+  VIA_REPORT_SIZE
+} from '../constants/via';
 
 /**
  * WebHIDを通じてキーマップを取得するComposable
@@ -212,7 +205,7 @@ export function useKeyboardKeymap() {
       // 1. プロトコルバージョンを確認
       console.log('[useKeyboardKeymap] ステップ 1: プロトコルバージョン確認');
       const versionResponsePromise = createResponsePromise('version');
-      await sendVIACommand(device, [id_get_protocol_version], reportId);
+      await sendVIACommand(device, [VIA_COMMAND.GET_PROTOCOL_VERSION], reportId);
       
       let viaProtocolVersion = 0x0c; // デフォルト値
       try {
@@ -220,8 +213,8 @@ export function useKeyboardKeymap() {
         viaProtocolVersion = (versionBuffer[1] << 8) | versionBuffer[2];
         console.log('[useKeyboardKeymap] プロトコルバージョン:', `0x${viaProtocolVersion.toString(16).padStart(4, '0')}`);
         
-        // Remapと同じく、0x0C未満は非対応
-        if (viaProtocolVersion < 0x0c) {
+        // Remapと同じく、MIN_VIA_PROTOCOL_VERSION未満は非対応
+        if (viaProtocolVersion < MIN_VIA_PROTOCOL_VERSION) {
           throw new Error(`VIAプロトコルバージョン ${viaProtocolVersion} は対応していません。0x0C以上が必要です。`);
         }
       } catch (err) {
@@ -232,7 +225,7 @@ export function useKeyboardKeymap() {
       // 2. レイヤー数を取得
       console.log('[useKeyboardKeymap] ステップ 2: レイヤー数取得');
       const layerCountResponsePromise = createResponsePromise('layerCount');
-      await sendVIACommand(device, [id_dynamic_keymap_get_layer_count], reportId);
+      await sendVIACommand(device, [VIA_COMMAND.DYNAMIC_KEYMAP_GET_LAYER_COUNT], reportId);
       
       let layerCount = 4; // デフォルト値
       try {
@@ -261,11 +254,11 @@ export function useKeyboardKeymap() {
         
         let remainingSize = totalSize;
         while (remainingSize > 0) {
-          const size = Math.min(28, remainingSize);
+          const size = Math.min(VIA_BUFFER_CHUNK_SIZE, remainingSize);
           
           const bufferResponsePromise = createResponsePromise(`buffer-${layer}-${offset}`);
           await sendVIACommand(device, [
-            id_dynamic_keymap_get_buffer,
+            VIA_COMMAND.DYNAMIC_KEYMAP_GET_BUFFER,
             (offset >> 8) & 0xff,  // offset high byte
             offset & 0xff,          // offset low byte
             size                     // size
@@ -336,11 +329,11 @@ export function useKeyboardKeymap() {
    */
   async function sendVIACommand(device: any, command: number[], reportId: number = 0): Promise<any> {
     try {
-      // コマンドデータのみを含むバッファ（32バイト）
-      const dataBuffer = new Uint8Array(32);
+      // コマンドデータのみを含むバッファ
+      const dataBuffer = new Uint8Array(VIA_REPORT_SIZE);
 
       // コマンドをバッファにコピー
-      for (let i = 0; i < command.length && i < 32; i++) {
+      for (let i = 0; i < command.length && i < VIA_REPORT_SIZE; i++) {
         dataBuffer[i] = command[i];
       }
 

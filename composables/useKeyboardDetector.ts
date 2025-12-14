@@ -3,6 +3,9 @@ import type { KeyboardDevice, KeyboardDeviceHandle } from '../types/keyboard';
 import type { HIDDevice } from '../types/webhid';
 import { useKeyboardState } from './useKeyboardState';
 import { VIA_USAGE_PAGE, VIA_USAGE } from '../constants/via';
+import { createLogger } from './useLogger';
+
+const logger = createLogger('KeyboardDetector');
 
 /**
  * WebHID APIを使用してキーボードを検出するComposable
@@ -25,7 +28,7 @@ export function useKeyboardDetector() {
     // 優先順位1: VIA専用コレクション (usagePage: 0xff60, usage: 0x61)
     for (const collection of device.collections) {
       if (collection.usagePage === VIA_USAGE_PAGE && collection.usage === VIA_USAGE) {
-        console.log('[useKeyboardDetector] VIA専用コレクション発見:', device.productName);
+        logger.debug('VIA専用コレクション発見:', device.productName);
         return true;
       }
     }
@@ -34,7 +37,7 @@ export function useKeyboardDetector() {
     // QMKのVIAサポートは通常のキーボードエンドポイント経由でも動作する
     for (const collection of device.collections) {
       if (collection.usagePage === 0x01 && collection.usage === 0x06) {
-        console.log('[useKeyboardDetector] 通常のキーボードコレクション発見（VIA互換の可能性あり）:', device.productName);
+        logger.debug('通常のキーボードコレクション発見（VIA互換の可能性あり）:', device.productName);
         return true;
       }
     }
@@ -77,9 +80,9 @@ export function useKeyboardDetector() {
       // 既に許可されているデバイスを取得
       const devices = await hid.getDevices();
       
-      console.log('[useKeyboardDetector] 検出されたデバイス数:', devices.length);
+      logger.debug('検出されたデバイス数:', devices.length);
       devices.forEach((device, index) => {
-        console.log(`[useKeyboardDetector] Device ${index}:`, {
+        logger.debug(`Device ${index}:`, {
           vendorId: `0x${device.vendorId.toString(16).toUpperCase().padStart(4, '0')}`,
           productId: `0x${device.productId.toString(16).toUpperCase().padStart(4, '0')}`,
           productName: device.productName,
@@ -89,7 +92,7 @@ export function useKeyboardDetector() {
       });
       
       if (devices.length === 0) {
-        console.log('[useKeyboardDetector] デバイスが見つかりません。');
+        logger.debug('デバイスが見つかりません。');
         keyboards.value = [];
         return [];
       }
@@ -97,7 +100,7 @@ export function useKeyboardDetector() {
       // VIA対応キーボードのみをフィルタリング
       const keyboardDevices = devices.filter(isVIASupportedDevice);
       
-      console.log('[useKeyboardDetector] VIA対応キーボードデバイス数:', keyboardDevices.length);
+      logger.debug('VIA対応キーボードデバイス数:', keyboardDevices.length);
 
       const detectedKeyboards: KeyboardDevice[] = keyboardDevices.map((device) => {
         return {
@@ -119,10 +122,10 @@ export function useKeyboardDetector() {
         try {
           if (!device.opened) {
             await device.open();
-            console.log(`[useKeyboardDetector] デバイスを開きました: ${device.productName}`);
+            logger.debug(`デバイスを開きました: ${device.productName}`);
           }
         } catch (err) {
-          console.error(`[useKeyboardDetector] デバイスオープンエラー:`, err);
+          logger.error(`デバイスオープンエラー:`, err);
         }
       }
 
@@ -145,14 +148,14 @@ export function useKeyboardDetector() {
       // 重複を削除
       const uniqueKeyboards = deduplicateDevices(detectedKeyboards2);
 
-      console.log('[useKeyboardDetector] 変換後のキーボード数:', uniqueKeyboards.length);
+      logger.debug('変換後のキーボード数:', uniqueKeyboards.length);
       keyboards.value = uniqueKeyboards;
       return uniqueKeyboards;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'キーボード検出中にエラーが発生しました';
       setError(errorMsg);
       keyboards.value = [];
-      console.error('[useKeyboardDetector] Error detecting keyboards:', err);
+      logger.error('キーボード検出エラー:', err);
       return [];
     } finally {
       isLoading.value = false;
@@ -170,7 +173,7 @@ export function useKeyboardDetector() {
     const hid = navigator.hid;
 
     try {
-      console.log('[useKeyboardDetector] ユーザーにVIA対応キーボード選択ダイアログを表示');
+      logger.debug('ユーザーにVIA対応キーボード選択ダイアログを表示');
       // VIA対応キーボードまたは通常のキーボードをフィルタ
       const devices = await hid.requestDevice({ 
         filters: [
@@ -180,12 +183,12 @@ export function useKeyboardDetector() {
       });
 
       if (devices.length === 0) {
-        console.log('[useKeyboardDetector] ユーザーがデバイス選択をキャンセル');
+        logger.debug('ユーザーがデバイス選択をキャンセル');
         return null;
       }
 
       const device = devices[0];
-      console.log('[useKeyboardDetector] 選択されたデバイス:', {
+      logger.debug('選択されたデバイス:', {
         vendorId: `0x${device.vendorId.toString(16).toUpperCase().padStart(4, '0')}`,
         productId: `0x${device.productId.toString(16).toUpperCase().padStart(4, '0')}`,
         productName: device.productName,
@@ -219,7 +222,7 @@ export function useKeyboardDetector() {
 
       return selectedKeyboard;
     } catch (err) {
-      console.error('[useKeyboardDetector] Error requesting keyboard:', err);
+      logger.error('キーボード選択エラー:', err);
       if (err instanceof Error && err.name !== 'NotAllowedError') {
         setError('キーボード選択中にエラーが発生しました');
       }

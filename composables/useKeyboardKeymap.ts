@@ -10,6 +10,9 @@ import {
   VIA_BUFFER_CHUNK_SIZE,
   VIA_REPORT_SIZE
 } from '../constants/via';
+import { createLogger } from './useLogger';
+
+const logger = createLogger('KeyboardKeymap');
 
 /**
  * WebHIDを通じてキーマップを取得するComposable
@@ -34,9 +37,9 @@ export function useKeyboardKeymap() {
 
       // すべてのHIDデバイスを取得（同じ物理デバイスが複数のインターフェースとして現れる）
       const devices = await hid.getDevices();
-      console.log('[useKeyboardKeymap] すべてのHIDデバイス:');
+      logger.debug('すべてのHIDデバイス:');
       devices.forEach((device, index) => {
-        console.log(`  デバイス ${index}:`, {
+        logger.debug(`  デバイス ${index}:`, {
           productName: device.productName,
           vendorId: `0x${device.vendorId.toString(16).padStart(4, '0')}`,
           productId: `0x${device.productId.toString(16).padStart(4, '0')}`,
@@ -45,7 +48,7 @@ export function useKeyboardKeymap() {
         });
         if (device.collections) {
           device.collections.forEach((collection, colIndex) => {
-            console.log(`    コレクション ${colIndex}:`, {
+            logger.debug(`    コレクション ${colIndex}:`, {
               usagePage: `0x${collection.usagePage?.toString(16).padStart(4, '0')}`,
               usage: `0x${collection.usage?.toString(16).padStart(2, '0')}`,
               outputReports: collection.outputReports?.length || 0,
@@ -66,7 +69,7 @@ export function useKeyboardKeymap() {
         throw new Error('デバイスが見つかりません');
       }
 
-      console.log('[useKeyboardKeymap] マッチするデバイス数:', matchingDevices.length);
+      logger.debug('マッチするデバイス数:', matchingDevices.length);
 
       // VIA対応のコレクションを持つデバイスを優先的に選択
       let selectedDevice = matchingDevices.find((device) =>
@@ -89,7 +92,7 @@ export function useKeyboardKeymap() {
         selectedDevice = matchingDevices[0];
       }
 
-      console.log('[useKeyboardKeymap] 選択されたデバイス:', {
+      logger.debug('選択されたデバイス:', {
         productName: selectedDevice.productName,
         collections: selectedDevice.collections?.length,
       });
@@ -112,7 +115,7 @@ export function useKeyboardKeymap() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'キーマップ取得中にエラーが発生しました';
       setError(errorMsg);
-      console.error('Error fetching keymap:', err);
+      logger.error('キーマップ取得エラー:', err);
       return null;
     } finally {
       isLoading.value = false;
@@ -126,18 +129,18 @@ export function useKeyboardKeymap() {
    */
   async function getKeymapViaVIA(device: HIDDevice): Promise<RawKeymapData> {
     try {
-      console.log('[useKeyboardKeymap] VIA プロトコルでキーマップ取得を開始');
-      console.log('[useKeyboardKeymap] デバイス情報:', {
+      logger.debug('VIA プロトコルでキーマップ取得を開始');
+      logger.debug('デバイス情報:', {
         productName: device.productName,
         opened: device.opened,
         collections: device.collections?.length || 0,
       });
 
       // デバッグ: すべてのコレクション情報を出力
-      console.log('[useKeyboardKeymap] すべてのコレクション情報:');
+      logger.debug('すべてのコレクション情報:');
       if (device.collections) {
         device.collections.forEach((collection, index) => {
-          console.log(`  コレクション ${index}:`, {
+          logger.debug(`  コレクション ${index}:`, {
             usagePage: `0x${collection.usagePage?.toString(16).padStart(4, '0')}`,
             usage: `0x${collection.usage?.toString(16).padStart(2, '0')}`,
             inputReports: collection.inputReports?.length || 0,
@@ -153,7 +156,7 @@ export function useKeyboardKeymap() {
       );
 
       if (targetCollection) {
-        console.log('[useKeyboardKeymap] VIA専用コレクション発見:', targetCollection);
+        logger.debug('VIA専用コレクション発見:', targetCollection);
       } else {
         // VIAコレクションがない場合は、通常のキーボードコレクションを使用
         // QMKのVIAサポートは通常のキーボードエンドポイント経由でも動作する
@@ -162,9 +165,9 @@ export function useKeyboardKeymap() {
         );
         
         if (targetCollection) {
-          console.log('[useKeyboardKeymap] 通常のキーボードコレクションを使用（VIAコマンドは送信可能）:', targetCollection);
+          logger.debug('通常のキーボードコレクションを使用（VIAコマンドは送信可能）:', targetCollection);
         } else {
-          console.error('[useKeyboardKeymap] 使用可能なコレクションが見つかりません');
+          logger.error('使用可能なコレクションが見つかりません');
           throw new Error('キーボードコレクションが見つかりません。');
         }
       }
@@ -173,9 +176,9 @@ export function useKeyboardKeymap() {
       let reportId = 0;
       if (targetCollection.outputReports && targetCollection.outputReports.length > 0) {
         reportId = targetCollection.outputReports[0].reportId || 0;
-        console.log('[useKeyboardKeymap] reportId:', reportId);
+        logger.debug('reportId:', reportId);
       } else {
-        console.log('[useKeyboardKeymap] outputReports未定義、reportId=0を使用');
+        logger.debug('outputReports未定義、reportId=0を使用');
       }
 
       // 入力リスナーを設定（レスポンス待機用）
@@ -190,7 +193,7 @@ export function useKeyboardKeymap() {
             const data = event.data;
             const buffer = new Uint8Array(data.buffer);
             
-            console.log(`[useKeyboardKeymap] レスポンス受信 (${key}):`, Array.from(buffer.slice(0, 10)));
+            logger.debug(`レスポンス受信 (${key}):`, Array.from(buffer.slice(0, 10)));
             
             clearTimeout(timeout);
             device.removeEventListener('inputreport', listener);
@@ -204,7 +207,7 @@ export function useKeyboardKeymap() {
       };
 
       // 1. プロトコルバージョンを確認
-      console.log('[useKeyboardKeymap] ステップ 1: プロトコルバージョン確認');
+      logger.debug('ステップ 1: プロトコルバージョン確認');
       const versionResponsePromise = createResponsePromise('version');
       await sendVIACommand(device, [VIA_COMMAND.GET_PROTOCOL_VERSION], reportId);
       
@@ -212,19 +215,19 @@ export function useKeyboardKeymap() {
       try {
         const versionBuffer = await versionResponsePromise;
         viaProtocolVersion = (versionBuffer[1] << 8) | versionBuffer[2];
-        console.log('[useKeyboardKeymap] プロトコルバージョン:', `0x${viaProtocolVersion.toString(16).padStart(4, '0')}`);
+        logger.debug('プロトコルバージョン:', `0x${viaProtocolVersion.toString(16).padStart(4, '0')}`);
         
         // Remapと同じく、MIN_VIA_PROTOCOL_VERSION未満は非対応
         if (viaProtocolVersion < MIN_VIA_PROTOCOL_VERSION) {
           throw new Error(`VIAプロトコルバージョン ${viaProtocolVersion} は対応していません。0x0C以上が必要です。`);
         }
       } catch (err) {
-        console.warn('[useKeyboardKeymap] プロトコルバージョン取得エラー:', err);
+        logger.warn('プロトコルバージョン取得エラー:', err);
         throw err;
       }
 
       // 2. レイヤー数を取得
-      console.log('[useKeyboardKeymap] ステップ 2: レイヤー数取得');
+      logger.debug('ステップ 2: レイヤー数取得');
       const layerCountResponsePromise = createResponsePromise('layerCount');
       await sendVIACommand(device, [VIA_COMMAND.DYNAMIC_KEYMAP_GET_LAYER_COUNT], reportId);
       
@@ -232,21 +235,21 @@ export function useKeyboardKeymap() {
       try {
         const layerCountBuffer = await layerCountResponsePromise;
         layerCount = layerCountBuffer[1];
-        console.log('[useKeyboardKeymap] レイヤー数:', layerCount);
+        logger.debug('レイヤー数:', layerCount);
       } catch (err) {
-        console.warn('[useKeyboardKeymap] レイヤー数取得エラー、デフォルト値を使用:', layerCount, err);
+        logger.warn('レイヤー数取得エラー、デフォルト値を使用:', layerCount, err);
       }
 
       // 3. マトリクスサイズ（固定値を使用）
       // TODO: 将来的にはキーボード定義JSONから取得すべき
       const rows = 5;
       const cols = 14;
-      console.log('[useKeyboardKeymap] マトリクスサイズ（固定値）: rows=', rows, 'cols=', cols);
+      logger.debug('マトリクスサイズ（固定値）: rows=', rows, 'cols=', cols);
 
       // 4. キーマップデータを取得（Remapと同じバッファ読み込み方式）
       const keymapByLayer: { [layerNumber: number]: number[][] } = {};
       for (let layer = 0; layer < layerCount; layer++) {
-        console.log(`[useKeyboardKeymap] ステップ ${3 + layer}: レイヤー ${layer} のキーマップ取得`);
+        logger.debug(`ステップ ${3 + layer}: レイヤー ${layer} のキーマップ取得`);
         
         // Remapと同じく、バッファを28バイトずつ読み込む
         const totalSize = rows * cols * 2; // 各キーは2バイト
@@ -271,9 +274,9 @@ export function useKeyboardKeymap() {
             for (let i = 4; i < 4 + size; i++) {
               keymapData.push(bufferData[i]);
             }
-            console.log(`[useKeyboardKeymap] バッファ読み込み: offset=${offset}, size=${size}, 取得=${size}バイト`);
+            logger.debug(`バッファ読み込み: offset=${offset}, size=${size}, 取得=${size}バイト`);
           } catch (err) {
-            console.warn(`[useKeyboardKeymap] バッファ読み込みエラー: offset=${offset}`, err);
+            logger.warn(`バッファ読み込みエラー: offset=${offset}`, err);
             // タイムアウトの場合は0で埋める
             for (let i = 0; i < size; i++) {
               keymapData.push(0);
@@ -311,10 +314,10 @@ export function useKeyboardKeymap() {
         timestamp: new Date().toISOString(),
       };
 
-      console.log('[useKeyboardKeymap] キーマップ取得完了:', result);
+      logger.debug('キーマップ取得完了:', result);
       return result;
     } catch (err) {
-      console.error('[useKeyboardKeymap] VIA キーマップ取得エラー:', err);
+      logger.error('VIA キーマップ取得エラー:', err);
       throw err;
     }
   }
@@ -338,7 +341,7 @@ export function useKeyboardKeymap() {
         dataBuffer[i] = command[i];
       }
 
-      console.log('[useKeyboardKeymap] VIA コマンド送信:', {
+      logger.debug('VIA コマンド送信:', {
         reportId: reportId,
         bufferSize: dataBuffer.length,
         command: Array.from(command),
@@ -348,16 +351,16 @@ export function useKeyboardKeymap() {
       // 通常出力レポートで送信（Remapと同じパターン）
       try {
         await device.sendReport(reportId, dataBuffer);
-        console.log('[useKeyboardKeymap] 出力レポート送信成功');
+        logger.debug('出力レポート送信成功');
       } catch (err) {
-        console.error('[useKeyboardKeymap] 出力レポート送信エラー:', err);
+        logger.error('出力レポート送信エラー:', err);
         // フィーチャーレポートの試行にフォールバック
-        console.log('[useKeyboardKeymap] フィーチャーレポートでリトライ...');
+        logger.debug('フィーチャーレポートでリトライ...');
         try {
           await device.sendFeatureReport(reportId, dataBuffer);
-          console.log('[useKeyboardKeymap] フィーチャーレポート送信成功（フォールバック）');
+          logger.debug('フィーチャーレポート送信成功（フォールバック）');
         } catch (fallbackErr) {
-          console.error('[useKeyboardKeymap] フィーチャーレポート送信エラー（フォールバック失敗）:', fallbackErr);
+          logger.error('フィーチャーレポート送信エラー（フォールバック失敗）:', fallbackErr);
           throw err;
         }
       }
@@ -366,7 +369,7 @@ export function useKeyboardKeymap() {
       // このメソッド呼び出し側でレスポンス待機を処理する
       return { success: true };
     } catch (err) {
-      console.error('[useKeyboardKeymap] VIA コマンド送信エラー:', err);
+      logger.error('VIA コマンド送信エラー:', err);
       throw err;
     }
   }

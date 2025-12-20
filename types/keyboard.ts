@@ -51,3 +51,35 @@ export interface RawKeymapData {
   };
   timestamp: string;
 }
+
+/**
+ * キーボードレイアウト上の1つのキーの物理的位置情報（QMK形式）
+ */
+export interface KeyPosition {
+  /** マトリックス位置 [row, col] */
+  matrix: [number, number];
+  /** X座標（キー単位、1u = 1キー幅） */
+  x: number;
+  /** Y座標（キー単位、1u = 1キー高さ） */
+  y: number;
+  /** キー幅（省略時は1u） */
+  w?: number;
+  /** キー高さ（省略時は1u） */
+  h?: number;
+  /** 回転角度（度数法） */
+  r?: number;
+  /** 回転の中心X座標 */
+  rx?: number;
+  /** 回転の中心Y座標 */
+  ry?: number;
+}
+
+/**
+ * キーボードの物理レイアウト定義
+ */
+export interface KeyboardLayout {
+  /** レイアウトマクロ名（例: "LAYOUT", "LAYOUT_split_3x6_3"） */
+  name: string;
+  /** 各キーの物理的位置情報の配列 */
+  layout: KeyPosition[];
+}

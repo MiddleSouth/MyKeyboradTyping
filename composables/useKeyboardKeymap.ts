@@ -123,6 +123,238 @@ export function useKeyboardKeymap() {
   }
 
   /**
+   * VIA対応のコレクションを選択
+   * VIA専用コレクション（0xff60/0x61）または通常のキーボードコレクション（0x01/0x06）を返す
+   */
+  function selectVIACollection(device: HIDDevice): { collection: any; reportId: number } {
+    logger.debug('デバイス情報:', {
+      productName: device.productName,
+      opened: device.opened,
+      collections: device.collections?.length || 0,
+    });
+
+    // デバッグ: すべてのコレクション情報を出力
+    logger.debug('すべてのコレクション情報:');
+    if (device.collections) {
+      device.collections.forEach((collection, index) => {
+        logger.debug(`  コレクション ${index}:`, {
+          usagePage: `0x${collection.usagePage?.toString(16).padStart(4, '0')}`,
+          usage: `0x${collection.usage?.toString(16).padStart(2, '0')}`,
+          inputReports: collection.inputReports?.length || 0,
+          outputReports: collection.outputReports?.length || 0,
+          featureReports: collection.featureReports?.length || 0,
+        });
+      });
+    }
+
+    // VIA対応のコレクションを探す（優先）
+    let targetCollection = device.collections?.find(
+      (c) => c.usagePage === VIA_USAGE_PAGE && c.usage === VIA_USAGE
+    );
+
+    if (targetCollection) {
+      logger.debug('VIA専用コレクション発見:', targetCollection);
+    } else {
+      // VIAコレクションがない場合は、通常のキーボードコレクションを使用
+      // QMKのVIAサポートは通常のキーボードエンドポイント経由でも動作する
+      targetCollection = device.collections?.find(
+        (c) => c.usagePage === 0x01 && c.usage === 0x06
+      );
+      
+      if (targetCollection) {
+        logger.debug('通常のキーボードコレクションを使用（VIAコマンドは送信可能）:', targetCollection);
+      } else {
+        logger.error('使用可能なコレクションが見つかりません');
+        throw new Error('キーボードコレクションが見つかりません。');
+      }
+    }
+
+    // ReportID を特定（通常は0）
+    let reportId = 0;
+    if (targetCollection.outputReports && targetCollection.outputReports.length > 0) {
+      reportId = targetCollection.outputReports[0].reportId || 0;
+      logger.debug('reportId:', reportId);
+    } else {
+      logger.debug('outputReports未定義、reportId=0を使用');
+    }
+
+    return { collection: targetCollection, reportId };
+  }
+
+  /**
+   * レスポンス待機用のPromiseを作成するヘルパー関数
+   */
+  function createResponsePromise(device: HIDDevice, key: string): Promise<Uint8Array> {
+    return new Promise<Uint8Array>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error(`レスポンスタイムアウト: ${key}`));
+      }, 5000);  // 5秒に延長（Remapでは長めに設定）
+
+      const listener = (event: HIDInputReportEvent) => {
+        const data = event.data;
+        const buffer = new Uint8Array(data.buffer);
+        
+        logger.debug(`レスポンス受信 (${key}):`, Array.from(buffer.slice(0, 10)));
+        
+        clearTimeout(timeout);
+        device.removeEventListener('inputreport', listener);
+        resolve(buffer);
+      };
+
+      device.addEventListener('inputreport', listener);
+    });
+  }
+
+  /**
+   * VIAプロトコルバージョンを取得
+   * MIN_VIA_PROTOCOL_VERSION（0x0C）未満の場合はエラーをスロー
+   */
+  async function getProtocolVersion(device: HIDDevice, reportId: number): Promise<number> {
+    logger.debug('ステップ 1: プロトコルバージョン確認');
+    const versionResponsePromise = createResponsePromise(device, 'version');
+    await sendVIACommand(device, [VIA_COMMAND.GET_PROTOCOL_VERSION], reportId);
+    
+    const versionBuffer = await versionResponsePromise;
+    const viaProtocolVersion = (versionBuffer[1] << 8) | versionBuffer[2];
+    logger.debug('プロトコルバージョン:', `0x${viaProtocolVersion.toString(16).padStart(4, '0')}`);
+    
+    // Remapと同じく、MIN_VIA_PROTOCOL_VERSION未満は非対応
+    if (viaProtocolVersion < MIN_VIA_PROTOCOL_VERSION) {
+      throw new Error(`VIAプロトコルバージョン ${viaProtocolVersion} は対応していません。0x0C以上が必要です。`);
+    }
+
+    return viaProtocolVersion;
+  }
+
+  /**
+   * キーボードのレイヤー数を取得
+   * 取得失敗時はデフォルト値4を返す
+   */
+  async function getLayerCount(device: HIDDevice, reportId: number): Promise<number> {
+    logger.debug('ステップ 2: レイヤー数取得');
+    const layerCountResponsePromise = createResponsePromise(device, 'layerCount');
+    await sendVIACommand(device, [VIA_COMMAND.DYNAMIC_KEYMAP_GET_LAYER_COUNT], reportId);
+    
+    try {
+      const layerCountBuffer = await layerCountResponsePromise;
+      const layerCount = layerCountBuffer[1];
+      logger.debug('レイヤー数:', layerCount);
+      return layerCount;
+    } catch (err) {
+      const defaultLayerCount = 4;
+      logger.warn('レイヤー数取得エラー、デフォルト値を使用:', defaultLayerCount, err);
+      return defaultLayerCount;
+    }
+  }
+
+  /**
+   * キーボードのマトリクスサイズを取得
+   * TODO: 将来的にはキーボード定義JSONから取得すべき
+   */
+  function getMatrixSize(): { rows: number; cols: number } {
+    // 現在は固定値（Ergo68用）
+    const rows = 5;
+    const cols = 14;
+    logger.debug('マトリクスサイズ（固定値）: rows=', rows, 'cols=', cols);
+    return { rows, cols };
+  }
+
+  /**
+   * 全レイヤーのキーマップデータをVIAプロトコルで取得
+   * 各レイヤーをバッファ読み込みでフェッチし、バイト配列をキーコード配列に変換
+   */
+  async function fetchAllLayers(
+    device: HIDDevice,
+    reportId: number,
+    layerCount: number,
+    rows: number,
+    cols: number
+  ): Promise<{ [layerNumber: number]: number[][] }> {
+    const keymapByLayer: { [layerNumber: number]: number[][] } = {};
+
+    for (let layer = 0; layer < layerCount; layer++) {
+      logger.debug(`ステップ ${3 + layer}: レイヤー ${layer} のキーマップ取得`);
+      
+      // Remapと同じく、バッファを28バイトずつ読み込む
+      const totalSize = rows * cols * 2; // 各キーは2バイト
+      let offset = layer * totalSize;
+      const keymapData: number[] = [];
+      
+      let remainingSize = totalSize;
+      while (remainingSize > 0) {
+        const size = Math.min(VIA_BUFFER_CHUNK_SIZE, remainingSize);
+        
+        const bufferResponsePromise = createResponsePromise(device, `buffer-${layer}-${offset}`);
+        await sendVIACommand(device, [
+          VIA_COMMAND.DYNAMIC_KEYMAP_GET_BUFFER,
+          (offset >> 8) & 0xff,  // offset high byte
+          offset & 0xff,          // offset low byte
+          size                     // size
+        ], reportId);
+        
+        try {
+          const bufferData = await bufferResponsePromise;
+          // レスポンスの4バイト目からがデータ本体
+          for (let i = 4; i < 4 + size; i++) {
+            keymapData.push(bufferData[i]);
+          }
+          logger.debug(`バッファ読み込み: offset=${offset}, size=${size}, 取得=${size}バイト`);
+        } catch (err) {
+          logger.warn(`バッファ読み込みエラー: offset=${offset}`, err);
+          // タイムアウトの場合は0で埋める
+          for (let i = 0; i < size; i++) {
+            keymapData.push(0);
+          }
+        }
+        
+        offset += size;
+        remainingSize -= size;
+      }
+      
+      // バイト配列をキーマップに変換
+      const layerKeymap: number[][] = [];
+      let dataIndex = 0;
+      for (let row = 0; row < rows; row++) {
+        layerKeymap[row] = [];
+        for (let col = 0; col < cols; col++) {
+          const keycode = (keymapData[dataIndex] << 8) | keymapData[dataIndex + 1];
+          layerKeymap[row][col] = keycode;
+          dataIndex += 2;
+        }
+      }
+      
+      keymapByLayer[layer] = layerKeymap;
+    }
+
+    return keymapByLayer;
+  }
+
+  /**
+   * RawKeymapDataオブジェクトを構築
+   */
+  function buildRawKeymapData(
+    device: HIDDevice,
+    rows: number,
+    cols: number,
+    layerCount: number,
+    keymapByLayer: { [layerNumber: number]: number[][] }
+  ): RawKeymapData {
+    const result: RawKeymapData = {
+      vendorId: device.vendorId,
+      productId: device.productId,
+      productName: device.productName,
+      rows,
+      cols,
+      layerCount,
+      keymap_by_layer: keymapByLayer,
+      timestamp: new Date().toISOString(),
+    };
+
+    logger.debug('キーマップ取得完了:', result);
+    return result;
+  }
+
+  /**
    * VIA互換のコマンドでキーマップを取得
    * 
    * Remapのキーマップ取得フローに基づく実装
@@ -130,192 +362,24 @@ export function useKeyboardKeymap() {
   async function getKeymapViaVIA(device: HIDDevice): Promise<RawKeymapData> {
     try {
       logger.debug('VIA プロトコルでキーマップ取得を開始');
-      logger.debug('デバイス情報:', {
-        productName: device.productName,
-        opened: device.opened,
-        collections: device.collections?.length || 0,
-      });
 
-      // デバッグ: すべてのコレクション情報を出力
-      logger.debug('すべてのコレクション情報:');
-      if (device.collections) {
-        device.collections.forEach((collection, index) => {
-          logger.debug(`  コレクション ${index}:`, {
-            usagePage: `0x${collection.usagePage?.toString(16).padStart(4, '0')}`,
-            usage: `0x${collection.usage?.toString(16).padStart(2, '0')}`,
-            inputReports: collection.inputReports?.length || 0,
-            outputReports: collection.outputReports?.length || 0,
-            featureReports: collection.featureReports?.length || 0,
-          });
-        });
-      }
+      // 1. VIA対応コレクションを選択
+      const { reportId } = selectVIACollection(device);
 
-      // VIA対応のコレクションを探す（優先）
-      let targetCollection = device.collections?.find(
-        (c) => c.usagePage === VIA_USAGE_PAGE && c.usage === VIA_USAGE
-      );
+      // 2. プロトコルバージョンを確認
+      await getProtocolVersion(device, reportId);
 
-      if (targetCollection) {
-        logger.debug('VIA専用コレクション発見:', targetCollection);
-      } else {
-        // VIAコレクションがない場合は、通常のキーボードコレクションを使用
-        // QMKのVIAサポートは通常のキーボードエンドポイント経由でも動作する
-        targetCollection = device.collections?.find(
-          (c) => c.usagePage === 0x01 && c.usage === 0x06
-        );
-        
-        if (targetCollection) {
-          logger.debug('通常のキーボードコレクションを使用（VIAコマンドは送信可能）:', targetCollection);
-        } else {
-          logger.error('使用可能なコレクションが見つかりません');
-          throw new Error('キーボードコレクションが見つかりません。');
-        }
-      }
+      // 3. レイヤー数を取得
+      const layerCount = await getLayerCount(device, reportId);
 
-      // ReportID を特定（通常は0）
-      let reportId = 0;
-      if (targetCollection.outputReports && targetCollection.outputReports.length > 0) {
-        reportId = targetCollection.outputReports[0].reportId || 0;
-        logger.debug('reportId:', reportId);
-      } else {
-        logger.debug('outputReports未定義、reportId=0を使用');
-      }
+      // 4. マトリクスサイズを取得
+      const { rows, cols } = getMatrixSize();
 
-      // 入力リスナーを設定（レスポンス待機用）
-      const responsePromises = new Map<string, Promise<Uint8Array>>();
-      const createResponsePromise = (key: string) => {
-        const promise = new Promise<Uint8Array>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error(`レスポンスタイムアウト: ${key}`));
-          }, 5000);  // 5秒に延長（Remapでは長めに設定）
+      // 5. 全レイヤーのキーマップデータを取得
+      const keymapByLayer = await fetchAllLayers(device, reportId, layerCount, rows, cols);
 
-          const listener = (event: HIDInputReportEvent) => {
-            const data = event.data;
-            const buffer = new Uint8Array(data.buffer);
-            
-            logger.debug(`レスポンス受信 (${key}):`, Array.from(buffer.slice(0, 10)));
-            
-            clearTimeout(timeout);
-            device.removeEventListener('inputreport', listener);
-            resolve(buffer);
-          };
-
-          device.addEventListener('inputreport', listener);
-        });
-        responsePromises.set(key, promise);
-        return promise;
-      };
-
-      // 1. プロトコルバージョンを確認
-      logger.debug('ステップ 1: プロトコルバージョン確認');
-      const versionResponsePromise = createResponsePromise('version');
-      await sendVIACommand(device, [VIA_COMMAND.GET_PROTOCOL_VERSION], reportId);
-      
-      let viaProtocolVersion = 0x0c; // デフォルト値
-      try {
-        const versionBuffer = await versionResponsePromise;
-        viaProtocolVersion = (versionBuffer[1] << 8) | versionBuffer[2];
-        logger.debug('プロトコルバージョン:', `0x${viaProtocolVersion.toString(16).padStart(4, '0')}`);
-        
-        // Remapと同じく、MIN_VIA_PROTOCOL_VERSION未満は非対応
-        if (viaProtocolVersion < MIN_VIA_PROTOCOL_VERSION) {
-          throw new Error(`VIAプロトコルバージョン ${viaProtocolVersion} は対応していません。0x0C以上が必要です。`);
-        }
-      } catch (err) {
-        logger.warn('プロトコルバージョン取得エラー:', err);
-        throw err;
-      }
-
-      // 2. レイヤー数を取得
-      logger.debug('ステップ 2: レイヤー数取得');
-      const layerCountResponsePromise = createResponsePromise('layerCount');
-      await sendVIACommand(device, [VIA_COMMAND.DYNAMIC_KEYMAP_GET_LAYER_COUNT], reportId);
-      
-      let layerCount = 4; // デフォルト値
-      try {
-        const layerCountBuffer = await layerCountResponsePromise;
-        layerCount = layerCountBuffer[1];
-        logger.debug('レイヤー数:', layerCount);
-      } catch (err) {
-        logger.warn('レイヤー数取得エラー、デフォルト値を使用:', layerCount, err);
-      }
-
-      // 3. マトリクスサイズ（固定値を使用）
-      // TODO: 将来的にはキーボード定義JSONから取得すべき
-      const rows = 5;
-      const cols = 14;
-      logger.debug('マトリクスサイズ（固定値）: rows=', rows, 'cols=', cols);
-
-      // 4. キーマップデータを取得（Remapと同じバッファ読み込み方式）
-      const keymapByLayer: { [layerNumber: number]: number[][] } = {};
-      for (let layer = 0; layer < layerCount; layer++) {
-        logger.debug(`ステップ ${3 + layer}: レイヤー ${layer} のキーマップ取得`);
-        
-        // Remapと同じく、バッファを28バイトずつ読み込む
-        const totalSize = rows * cols * 2; // 各キーは2バイト
-        let offset = layer * totalSize;
-        const keymapData: number[] = [];
-        
-        let remainingSize = totalSize;
-        while (remainingSize > 0) {
-          const size = Math.min(VIA_BUFFER_CHUNK_SIZE, remainingSize);
-          
-          const bufferResponsePromise = createResponsePromise(`buffer-${layer}-${offset}`);
-          await sendVIACommand(device, [
-            VIA_COMMAND.DYNAMIC_KEYMAP_GET_BUFFER,
-            (offset >> 8) & 0xff,  // offset high byte
-            offset & 0xff,          // offset low byte
-            size                     // size
-          ], reportId);
-          
-          try {
-            const bufferData = await bufferResponsePromise;
-            // レスポンスの4バイト目からがデータ本体
-            for (let i = 4; i < 4 + size; i++) {
-              keymapData.push(bufferData[i]);
-            }
-            logger.debug(`バッファ読み込み: offset=${offset}, size=${size}, 取得=${size}バイト`);
-          } catch (err) {
-            logger.warn(`バッファ読み込みエラー: offset=${offset}`, err);
-            // タイムアウトの場合は0で埋める
-            for (let i = 0; i < size; i++) {
-              keymapData.push(0);
-            }
-          }
-          
-          offset += size;
-          remainingSize -= size;
-        }
-        
-        // バイト配列をキーマップに変換
-        const layerKeymap: number[][] = [];
-        let dataIndex = 0;
-        for (let row = 0; row < rows; row++) {
-          layerKeymap[row] = [];
-          for (let col = 0; col < cols; col++) {
-            const keycode = (keymapData[dataIndex] << 8) | keymapData[dataIndex + 1];
-            layerKeymap[row][col] = keycode;
-            dataIndex += 2;
-          }
-        }
-        
-        keymapByLayer[layer] = layerKeymap;
-      }
-
-      // 結果をまとめる
-      const result: RawKeymapData = {
-        vendorId: device.vendorId,
-        productId: device.productId,
-        productName: device.productName,
-        rows,
-        cols,
-        layerCount,
-        keymap_by_layer: keymapByLayer,
-        timestamp: new Date().toISOString(),
-      };
-
-      logger.debug('キーマップ取得完了:', result);
-      return result;
+      // 6. 結果をまとめる
+      return buildRawKeymapData(device, rows, cols, layerCount, keymapByLayer);
     } catch (err) {
       logger.error('VIA キーマップ取得エラー:', err);
       throw err;

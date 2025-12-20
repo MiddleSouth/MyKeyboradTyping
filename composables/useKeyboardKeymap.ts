@@ -11,6 +11,7 @@ import {
   VIA_REPORT_SIZE
 } from '../constants/via';
 import { createLogger } from './useLogger';
+import { parseLayerBuffer } from '../utils/keymapParser';
 
 const logger = createLogger('KeyboardKeymap');
 
@@ -22,6 +23,56 @@ export function useKeyboardKeymap() {
   const keymapData = ref<KeymapData | null>(null);
   const isLoading = ref(false);
   const rawHIDData = ref<RawKeymapData | null>(null);
+
+  /**
+   * マッチするデバイスから最適なVIA対応デバイスを選択
+   * 優先順位: VIA専用コレクション > outputReports持ち > 最初のデバイス
+   */
+  function selectBestDevice(matchingDevices: HIDDevice[]): HIDDevice {
+    if (matchingDevices.length === 0) {
+      throw new Error('デバイスが見つかりません');
+    }
+
+    logger.debug('マッチするデバイス数:', matchingDevices.length);
+
+    // VIA対応のコレクションを持つデバイスを優先的に選択
+    let selectedDevice = matchingDevices.find((device) =>
+      device.collections?.some((c) => 
+        c.usagePage === VIA_USAGE_PAGE && c.usage === VIA_USAGE
+      )
+    );
+
+    // VIA対応デバイスがなければ、outputReportsを持つデバイスを選択
+    if (!selectedDevice) {
+      selectedDevice = matchingDevices.find((device) =>
+        device.collections?.some((c) => 
+          c.outputReports && c.outputReports.length > 0
+        )
+      );
+    }
+
+    // それでもなければ最初のデバイスを使用
+    if (!selectedDevice) {
+      selectedDevice = matchingDevices[0];
+    }
+
+    logger.debug('選択されたデバイス:', {
+      productName: selectedDevice.productName,
+      collections: selectedDevice.collections?.length,
+    });
+
+    return selectedDevice;
+  }
+
+  /**
+   * デバイスが開いていることを保証（閉じている場合は開く）
+   */
+  async function ensureDeviceOpen(device: HIDDevice): Promise<void> {
+    if (!device.opened) {
+      logger.debug('デバイスを開きます:', device.productName);
+      await device.open();
+    }
+  }
 
   /**
    * 選択されたキーボードからキーマップを取得
@@ -65,42 +116,11 @@ export function useKeyboardKeymap() {
           device.productId === keyboard.productId
       );
 
-      if (matchingDevices.length === 0) {
-        throw new Error('デバイスが見つかりません');
-      }
-
-      logger.debug('マッチするデバイス数:', matchingDevices.length);
-
-      // VIA対応のコレクションを持つデバイスを優先的に選択
-      let selectedDevice = matchingDevices.find((device) =>
-        device.collections?.some((c) => 
-          c.usagePage === VIA_USAGE_PAGE && c.usage === VIA_USAGE
-        )
-      );
-
-      // VIA対応デバイスがなければ、outputReportsを持つデバイスを選択
-      if (!selectedDevice) {
-        selectedDevice = matchingDevices.find((device) =>
-          device.collections?.some((c) => 
-            c.outputReports && c.outputReports.length > 0
-          )
-        );
-      }
-
-      // それでもなければ最初のデバイスを使用
-      if (!selectedDevice) {
-        selectedDevice = matchingDevices[0];
-      }
-
-      logger.debug('選択されたデバイス:', {
-        productName: selectedDevice.productName,
-        collections: selectedDevice.collections?.length,
-      });
+      // 最適なデバイスを選択
+      const selectedDevice = selectBestDevice(matchingDevices);
 
       // デバイスが閉じられている場合は開く
-      if (!selectedDevice.opened) {
-        await selectedDevice.open();
-      }
+      await ensureDeviceOpen(selectedDevice);
 
       // キーマップを取得（VIA互換コマンド）
       // VIAのキーマップ取得コマンド
@@ -312,17 +332,7 @@ export function useKeyboardKeymap() {
       }
       
       // バイト配列をキーマップに変換
-      const layerKeymap: number[][] = [];
-      let dataIndex = 0;
-      for (let row = 0; row < rows; row++) {
-        layerKeymap[row] = [];
-        for (let col = 0; col < cols; col++) {
-          const keycode = (keymapData[dataIndex] << 8) | keymapData[dataIndex + 1];
-          layerKeymap[row][col] = keycode;
-          dataIndex += 2;
-        }
-      }
-      
+      const layerKeymap = parseLayerBuffer(keymapData, rows, cols);
       keymapByLayer[layer] = layerKeymap;
     }
 

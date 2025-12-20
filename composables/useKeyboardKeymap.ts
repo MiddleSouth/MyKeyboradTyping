@@ -450,20 +450,21 @@ export function useKeyboardKeymap() {
 
   /**
    * 生データからキーマップを解析
+   * RawKeymapDataをKeymapData形式に変換
    */
   function parseKeymapData(rawData: RawKeymapData, keyboard: KeyboardDevice): KeymapData {
-    // 簡易実装：スケルトンデータを返す
+    logger.debug('キーマップデータをパース:', {
+      layerCount: rawData.layerCount,
+      rows: rawData.rows,
+      cols: rawData.cols,
+    });
+
     return {
       keyboard: {
         id: `${keyboard.vendorId}:${keyboard.productId}`,
         name: keyboard.productName,
       },
-      layers: {
-        0: [],
-        1: [],
-        2: [],
-        3: [],
-      },
+      layers: rawData.keymap_by_layer,
     };
   }
 

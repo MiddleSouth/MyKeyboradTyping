@@ -84,6 +84,14 @@ function getKeyLabel(pos: KeyPosition): string {
 }
 
 /**
+ * キーラベルを行に分割（改行対応）
+ */
+function getKeyLabelLines(pos: KeyPosition): string[] {
+  const label = getKeyLabel(pos)
+  return label.split('\n')
+}
+
+/**
  * キーのSVG座標を計算
  */
 function getKeyRect(pos: KeyPosition) {
@@ -149,7 +157,7 @@ function getTextPosition(pos: KeyPosition) {
           class="key-cap"
         />
         
-        <!-- キーラベル -->
+        <!-- キーラベル（複数行対応） -->
         <text
           :x="getTextPosition(keyPos).x"
           :y="getTextPosition(keyPos).y"
@@ -161,7 +169,14 @@ function getTextPosition(pos: KeyPosition) {
           font-weight="600"
           class="key-label"
         >
-          {{ getKeyLabel(keyPos) }}
+          <tspan
+            v-for="(line, lineIndex) in getKeyLabelLines(keyPos)"
+            :key="lineIndex"
+            :x="getTextPosition(keyPos).x"
+            :dy="lineIndex === 0 ? (getKeyLabelLines(keyPos).length === 1 ? 0 : -7) : 14"
+          >
+            {{ line }}
+          </tspan>
         </text>
         
         <!-- デバッグ用: マトリックス位置を小さく表示 -->

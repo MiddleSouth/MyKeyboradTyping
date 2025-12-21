@@ -6,7 +6,7 @@
 /** 基本キーコードマップ (0x0004 - 0x00A4) */
 const BASIC_KEYCODES: Record<number, string> = {
   0x0000: 'NO',      // KC_NO
-  0x0001: 'TRNS',    // KC_TRNS (Transparent)
+  0x0001: '▽',    // KC_TRNS (Transparent)
   
   // 文字キー A-Z
   0x0004: 'A',
@@ -36,37 +36,37 @@ const BASIC_KEYCODES: Record<number, string> = {
   0x001C: 'Y',
   0x001D: 'Z',
   
-  // 数字キー 1-0
-  0x001E: '1',
-  0x001F: '2',
-  0x0020: '3',
-  0x0021: '4',
-  0x0022: '5',
-  0x0023: '6',
-  0x0024: '7',
-  0x0025: '8',
-  0x0026: '9',
-  0x0027: '0',
+  // 数字キー 1-0（シフト時の記号も表示）
+  0x001E: '!\n1',
+  0x001F: '@\n2',
+  0x0020: '#\n3',
+  0x0021: '$\n4',
+  0x0022: '%\n5',
+  0x0023: '^\n6',
+  0x0024: '&\n7',
+  0x0025: '*\n8',
+  0x0026: '(\n9',
+  0x0027: ')\n0',
   
   // 特殊キー
-  0x0028: 'ENT',     // Enter
-  0x0029: 'ESC',     // Escape
-  0x002A: 'BSPC',    // Backspace
-  0x002B: 'TAB',     // Tab
-  0x002C: 'SPC',     // Space
-  0x002D: 'MINS',    // - and _
-  0x002E: 'EQL',     // = and +
-  0x002F: 'LBRC',    // [ and {
-  0x0030: 'RBRC',    // ] and }
-  0x0031: 'BSLS',    // \ and |
-  0x0033: 'SCLN',    // ; and :
-  0x0034: 'QUOT',    // ' and "
-  0x0035: 'GRV',     // ` and ~
-  0x0036: 'COMM',    // , and <
-  0x0037: 'DOT',     // . and >
-  0x0038: 'SLSH',    // / and ?
-  0x0039: 'CAPS',    // Caps Lock
-  
+  0x0028: 'Enter',
+  0x0029: 'ESC',
+  0x002A: 'Back\nSpace',
+  0x002B: 'TAB',
+  0x002C: 'Space',
+  0x002D: '_\n-',
+  0x002E: '+\n=',
+  0x002F: '{\n[',
+  0x0030: '}\n]',
+  0x0031: '|\n\\',
+  0x0033: ':\n;',
+  0x0034: '"\n\'',
+  0x0035: '~\n`',
+  0x0036: '<\n,',
+  0x0037: '>\n.',
+  0x0038: '?\n/',
+  0x0039: 'Caps\nlock',
+
   // ファンクションキー
   0x003A: 'F1',
   0x003B: 'F2',
@@ -82,50 +82,65 @@ const BASIC_KEYCODES: Record<number, string> = {
   0x0045: 'F12',
   
   // システムキー
-  0x0046: 'PSCR',    // Print Screen
-  0x0047: 'SCRL',    // Scroll Lock
-  0x0048: 'PAUS',    // Pause
-  0x0049: 'INS',     // Insert
-  0x004A: 'HOME',    // Home
-  0x004B: 'PGUP',    // Page Up
-  0x004C: 'DEL',     // Delete
-  0x004D: 'END',     // End
-  0x004E: 'PGDN',    // Page Down
-  
+  0x0046: 'Print\nScreen',
+  0x0047: 'Scroll\nLock',
+  0x0048: 'Pause',
+  0x0049: 'Insert',
+  0x004A: 'Home',
+  0x004B: 'Page\nUp',
+  0x004C: 'Delete',
+  0x004D: 'End',
+  0x004E: 'Page\nDown',
+
   // 矢印キー
-  0x004F: 'RGHT',    // Right Arrow
-  0x0050: 'LEFT',    // Left Arrow
-  0x0051: 'DOWN',    // Down Arrow
-  0x0052: 'UP',      // Up Arrow
-  
+  0x004F: '→',
+  0x0050: '←',
+  0x0051: '↓',
+  0x0052: '↑',
+
   // テンキー
-  0x0053: 'NUM',     // Num Lock
-  0x0054: 'PSLS',    // Keypad /
-  0x0055: 'PAST',    // Keypad *
-  0x0056: 'PMNS',    // Keypad -
-  0x0057: 'PPLS',    // Keypad +
-  0x0058: 'PENT',    // Keypad Enter
-  0x0059: 'P1',      // Keypad 1
-  0x005A: 'P2',      // Keypad 2
-  0x005B: 'P3',      // Keypad 3
-  0x005C: 'P4',      // Keypad 4
-  0x005D: 'P5',      // Keypad 5
-  0x005E: 'P6',      // Keypad 6
-  0x005F: 'P7',      // Keypad 7
-  0x0060: 'P8',      // Keypad 8
-  0x0061: 'P9',      // Keypad 9
-  0x0062: 'P0',      // Keypad 0
-  0x0063: 'PDOT',    // Keypad .
+  0x0053: 'Num\nLock',
+  0x0054: '/',
+  0x0055: '*',
+  0x0056: '-',
+  0x0057: '+',
+  0x0058: 'Enter',
+  0x0059: '1',
+  0x005A: '2',
+  0x005B: '3',
+  0x005C: '4',
+  0x005D: '5',
+  0x005E: '6',
+  0x005F: '7',
+  0x0060: '8',
+  0x0061: '9',
+  0x0062: '0',
+  0x0063: '.',
   
   // モディファイアキー
-  0x00E0: 'LCTL',    // Left Control
-  0x00E1: 'LSFT',    // Left Shift
-  0x00E2: 'LALT',    // Left Alt
-  0x00E3: 'LGUI',    // Left GUI (Windows/Command)
-  0x00E4: 'RCTL',    // Right Control
-  0x00E5: 'RSFT',    // Right Shift
-  0x00E6: 'RALT',    // Right Alt
-  0x00E7: 'RGUI',    // Right GUI
+  0x00E0: '*Ctrl',
+  0x00E1: '*Shift',
+  0x00E2: '*Alt',
+  0x00E3: '*Win',
+  0x00E4: 'Ctrl*',
+  0x00E5: 'Shift*',
+  0x00E6: 'Alt*',
+  0x00E7: 'Win*',
+  0x5221: 'Mo(1)',
+  0x5222: 'Mo(2)',
+  0x5223: 'Mo(3)',
+
+  // マクロキー
+  0x7700: 'Macro0',
+  0x7701: 'Macro1',
+  0x7702: 'Macro2',
+  0x7703: 'Macro3',
+  0x7704: 'Macro4',
+  0x7705: 'Macro5',
+  0x7706: 'Macro6',
+  0x7707: 'Macro7',
+  0x7708: 'Macro8',
+  0x7709: 'Macro9',
 };
 
 /** Quantum Keycodes レンジ */

@@ -6,6 +6,7 @@ import { convertKeycodeToLabel } from '../utils/keycodeConverter'
 interface Props {
   keymapData: RawKeymapData | null
   layer?: number
+  pressedKeys?: Set<string> // "row,col" の形式
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -19,6 +20,15 @@ const error = ref<string | null>(null)
 // SVGのサイズ設定（1u = 60px）
 const KEY_UNIT = 60
 const KEY_PADDING = 4
+
+/**
+ * 指定されたキーが押されているかチェック
+ */
+function isKeyPressed(matrix: [number, number]): boolean {
+  if (!props.pressedKeys) return false
+  const [row, col] = matrix
+  return props.pressedKeys.has(`${row},${col}`)
+}
 
 /**
  * レイアウトJSONを読み込み
@@ -117,7 +127,7 @@ function getTextPosition(pos: KeyPosition) {
 
 <template>
   <div class="keyboard-layout-view">
-    <h3 class="text-lg font-semibold mb-4">キーボードレイアウト - レイヤー {{ layer }}</h3>
+    <h3 class="text-lg font-semibold mb-4">レイヤー {{ layer }}</h3>
     
     <!-- エラー表示 -->
     <div v-if="error" class="text-red-500 mb-4">
@@ -151,7 +161,7 @@ function getTextPosition(pos: KeyPosition) {
           :width="getKeyRect(keyPos).width"
           :height="getKeyRect(keyPos).height"
           rx="4"
-          fill="white"
+          :fill="isKeyPressed(keyPos.matrix) ? '#fbbf24' : 'white'"
           stroke="#9ca3af"
           stroke-width="2"
           class="key-cap"
@@ -210,14 +220,8 @@ svg text {
   user-select: none;
 }
 
-/* キーキャップのホバー効果 */
 .key-group {
   cursor: pointer;
-}
-
-.key-group:hover .key-cap {
-  fill: #eff6ff;
-  transition: fill 0.2s ease-in-out;
 }
 
 .key-label {

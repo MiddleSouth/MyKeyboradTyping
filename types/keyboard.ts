@@ -32,7 +32,7 @@ export interface KeymapData {
     name: string;
   };
   layers: {
-    [layerNumber: number]: number[][];  // [row][col] = キーコード
+    readonly [layerNumber: number]: readonly (readonly number[])[];  // [row][col] = キーコード
   };
 }
 
@@ -47,7 +47,7 @@ export interface RawKeymapData {
   cols: number;
   layerCount: number;
   keymap_by_layer: {
-    [layerNumber: number]: number[][];  // [row][col] = キーコード
+    readonly [layerNumber: number]: readonly (readonly number[])[];  // [row][col] = キーコード
   };
   timestamp: string;
 }

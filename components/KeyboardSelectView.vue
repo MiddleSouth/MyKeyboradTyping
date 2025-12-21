@@ -38,20 +38,13 @@
         </div>
         
         <!-- デバッグ用：キーマップ再取得ボタン -->
-        <div class="mt-3 space-y-2">
+        <div class="mt-3">
           <button
             @click="handleContinue"
             :disabled="isLoading"
             class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-sm rounded font-medium transition"
           >
             {{ isLoading ? 'キーマップ取得中...' : '🔄 キーマップを再取得（デバッグ用）' }}
-          </button>
-          
-          <button
-            @click="navigateToDebug"
-            class="ml-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded font-medium transition"
-          >
-            🎨 キーマップデバッグページを開く
           </button>
         </div>
       </div>
@@ -75,13 +68,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { useKeyboardDetector } from '../composables/useKeyboardDetector';
 import { useKeyboardKeymap } from '../composables/useKeyboardKeymap';
 import { useKeyboardState } from '../composables/useKeyboardState';
 import KeyboardLayoutView from './KeyboardLayoutView.vue';
-
-const router = useRouter();
 const { keyboards, isLoading: isDetecting, requestKeyboardSelection } = useKeyboardDetector();
 const { isLoading, fetchKeymap, rawHIDData } = useKeyboardKeymap();
 const { selectedKeyboard, error, clearError } = useKeyboardState();
@@ -113,14 +103,6 @@ async function handleContinue() {
 
   // キーマップを取得（エラーはcomposable側で処理）
   await fetchKeymap(selectedKeyboard.value);
-}
-
-function navigateToDebug() {
-  if (!selectedKeyboard.value) return;
-  
-  const vendorId = selectedKeyboard.value.vendorId;
-  const productId = selectedKeyboard.value.productId;
-  router.push(`/keymap-debug/${vendorId}/${productId}`);
 }
 </script>
 

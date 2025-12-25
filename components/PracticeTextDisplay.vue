@@ -74,15 +74,15 @@ function getCharClass(index: number): string {
 }
 
 .text-content {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-family: 'Courier New', monospace;
-  line-height: 1.6;
-  padding: 2rem;
+  line-height: 1.4;
+  padding: 0.25rem;
   background: white;
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1.5rem;
-  min-height: 120px;
+  margin-bottom: 1rem;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -92,7 +92,7 @@ function getCharClass(index: number): string {
 .text-char {
   display: inline-block;
   transition: all 0.2s ease;
-  padding: 0 2px;
+  padding: 0 1px;
 }
 
 .text-char.completed {
@@ -120,11 +120,11 @@ function getCharClass(index: number): string {
 .cursor {
   display: inline-block;
   width: 2px;
-  height: 2.5rem;
+  height: 1.6rem;
   background: #3b82f6;
-  margin-left: 4px;
+  margin-left: 2px;
   position: relative;
-  top: 8px;
+  top: 4px;
 }
 
 .cursor.blink {

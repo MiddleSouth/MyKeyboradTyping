@@ -17,8 +17,8 @@ const props = withDefaults(defineProps<Props>(), {
 const layout = ref<KeyboardLayout | null>(null)
 const error = ref<string | null>(null)
 
-// SVGのサイズ設定（1u = 60px）
-const KEY_UNIT = 60
+// SVGのサイズ設定（1u = 50px）
+const KEY_UNIT = 50
 const KEY_PADDING = 4
 
 /**
@@ -127,8 +127,6 @@ function getTextPosition(pos: KeyPosition) {
 
 <template>
   <div class="keyboard-layout-view">
-    <h3 class="text-lg font-semibold mb-4">レイヤー {{ layer }}</h3>
-    
     <!-- エラー表示 -->
     <div v-if="error" class="text-red-500 mb-4">
       エラー: {{ error }}
@@ -175,7 +173,7 @@ function getTextPosition(pos: KeyPosition) {
           dominant-baseline="middle"
           fill="#1f2937"
           font-family="monospace"
-          font-size="12"
+          font-size="14"
           font-weight="600"
           class="key-label"
         >
@@ -188,32 +186,17 @@ function getTextPosition(pos: KeyPosition) {
             {{ line }}
           </tspan>
         </text>
-        
-        <!-- デバッグ用: マトリックス位置を小さく表示 -->
-        <text
-          :x="getKeyRect(keyPos).x + 4"
-          :y="getKeyRect(keyPos).y + 12"
-          fill="#9ca3af"
-          font-size="8"
-          font-family="monospace"
-          class="matrix-label"
-        >
-          {{ keyPos.matrix[0] }},{{ keyPos.matrix[1] }}
-        </text>
       </g>
     </svg>
-    
-    <!-- レイアウト情報 -->
-    <div v-if="layout" class="mt-4 text-sm text-gray-600">
-      <p>レイアウト名: {{ layout.name }}</p>
-      <p>キー数: {{ layout.layout.length }}</p>
-    </div>
   </div>
 </template>
 
 <style scoped>
 .keyboard-layout-view {
   padding: 1rem;
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 svg text {

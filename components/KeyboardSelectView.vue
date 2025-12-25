@@ -1,10 +1,7 @@
 <template>
   <div class="keyboard-select-container">
-    <div class="container mx-auto p-6 max-w-4xl">
+    <div class="content-wrapper">
       <h1 class="text-3xl font-bold mb-8">MyKeyboardTyping</h1>
-
-      <!-- 説明文 -->
-      <InstructionBanner />
 
       <!-- メインボタン -->
       <div class="mb-6">
@@ -23,75 +20,106 @@
         <p>{{ error }}</p>
       </div>
 
-      <!-- 選択されたキーボード情報 -->
-      <KeyboardInfo :keyboard="selectedKeyboard">
-        <template #actions>
-          <button
-            @click="handleContinue"
-            :disabled="isLoading"
-            class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-sm rounded font-medium transition"
-          >
-            {{ isLoading ? 'キーマップ取得中...' : '🔄 キーマップを再取得（デバッグ用）' }}
-          </button>
-        </template>
-      </KeyboardInfo>
-
       <!-- タイピング練習セクション -->
-      <div v-if="rawHIDData && showTypingPractice" class="mt-8">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-2xl font-bold">タイピング練習</h2>
-          <button
-            @click="showTypingPractice = false"
-            class="text-sm text-gray-600 hover:text-gray-800"
-          >
-            × 閉じる
-          </button>
-        </div>
-
-        <!-- ステータス表示 -->
-        <div v-if="typingStatus !== 'waiting'" class="status-panel mb-6 p-4 bg-white rounded-lg shadow">
-          <div class="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div class="text-2xl font-bold text-green-600">{{ typingStatistics.correctCount }}</div>
-              <div class="text-sm text-gray-600">正解</div>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-red-600">{{ typingStatistics.incorrectCount }}</div>
-              <div class="text-sm text-gray-600">ミス</div>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-blue-600">{{ typingStatistics.accuracy }}%</div>
-              <div class="text-sm text-gray-600">正確率</div>
-            </div>
+      <div v-if="rawHIDData" class="mt-6">
+        <!-- 素材選択 -->
+        <div class="material-selector mb-4 p-3 bg-gray-50 rounded-lg">
+          <div class="flex items-center gap-3">
+            <label class="text-sm font-medium text-gray-700">練習素材:</label>
+            <select
+              v-model="selectedMaterialId"
+              @change="handleMaterialChange"
+              class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option
+                v-for="material in materials"
+                :key="material.id"
+                :value="material.id"
+              >
+                {{ material.title }}
+              </option>
+            </select>
           </div>
         </div>
 
         <!-- 練習テキスト表示 -->
-        <PracticeTextDisplay
-          :text="currentText"
-          :current-position="typingPosition"
-          :is-completed="typingCompleted"
-          :last-input-was-correct="lastInputWasCorrect"
-        />
+        <div class="mb-4">
+          <PracticeTextDisplay
+            :text="currentText"
+            :current-position="typingPosition"
+            :is-completed="typingCompleted"
+            :last-input-was-correct="lastInputWasCorrect"
+          />
+        </div>
+
+        <!-- キーボードレイアウト表示 -->
+        <div class="mb-4">
+          <!-- レイヤー選択ラジオボタン -->
+          <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="font-medium text-gray-700 text-sm">レイヤー:</span>
+              <label
+                v-for="layerNum in layerCount"
+                :key="layerNum - 1"
+                class="flex items-center gap-2 cursor-pointer hover:bg-white px-3 py-1.5 rounded transition"
+              >
+                <input
+                  type="radio"
+                  :value="layerNum - 1"
+                  v-model="selectedLayer"
+                  class="w-4 h-4 text-blue-600"
+                />
+                <span class="text-sm font-medium">Layer {{ layerNum - 1 }}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- キーボード表示 -->
+          <div class="bg-white p-4 rounded-lg shadow flex justify-center">
+            <KeyboardLayoutView 
+              :keymapData="rawHIDData" 
+              :layer="selectedLayer"
+              :pressedKeys="getPressedKeys(selectedLayer)"
+            />
+          </div>
+        </div>
+
+        <!-- ステータス表示 -->
+        <div class="status-panel mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg shadow">
+          <div class="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div class="text-2xl font-bold text-green-600">{{ typingStatistics.correctCount }}</div>
+              <div class="text-xs text-gray-600">正解</div>
+            </div>
+            <div>
+              <div class="text-3xl font-bold text-red-600">{{ typingStatistics.incorrectCount }}</div>
+              <div class="text-xs text-gray-600">ミス</div>
+            </div>
+            <div>
+              <div class="text-3xl font-bold text-blue-600">{{ typingStatistics.accuracy }}%</div>
+              <div class="text-xs text-gray-600">正確率</div>
+            </div>
+          </div>
+        </div>
 
         <!-- 完了メッセージ -->
-        <div v-if="typingCompleted" class="completion-message mt-6 p-6 bg-green-50 border-2 border-green-200 rounded-lg text-center">
-          <div class="text-3xl mb-4">🎉</div>
-          <h2 class="text-2xl font-bold text-green-800 mb-2">完了！</h2>
-          <p class="text-green-700 mb-4">
+        <div v-if="typingCompleted" class="completion-message mb-4 p-4 bg-green-50 border-2 border-green-200 rounded-lg text-center">
+          <div class="text-5xl mb-4">🎉</div>
+          <h3 class="text-2xl font-bold text-green-800 mb-2">完了！</h3>
+          <p class="text-green-700 mb-6">
             正確率: {{ typingStatistics.accuracy }}% ({{ typingStatistics.correctCount }}正解 / {{ typingStatistics.incorrectCount }}ミス)
           </p>
-          <div class="flex gap-4 justify-center">
+          <div class="flex gap-3 justify-center">
             <button
               @click="handleRetryTyping"
-              class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
+              class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow"
             >
               もう一度
             </button>
             <button
               @click="handleNextMaterial"
               :disabled="!canGoNextMaterial"
-              class="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition"
+              class="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition shadow"
             >
               次の練習へ
             </button>
@@ -99,58 +127,9 @@
         </div>
 
         <!-- 待機メッセージ -->
-        <div v-if="typingStatus === 'waiting'" class="waiting-message mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center text-blue-800">
+        <div v-if="typingStatus === 'waiting'" class="waiting-message mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg text-center text-blue-800 text-sm">
           キーを入力して開始してください
         </div>
-
-        <!-- 素材選択 -->
-        <div class="material-selector mt-6 p-4 bg-gray-50 rounded-lg">
-          <h3 class="text-lg font-bold mb-3">練習素材を選択</h3>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            <button
-              v-for="material in materials"
-              :key="material.id"
-              @click="selectPracticeMaterial(material.id)"
-              :class="[
-                'px-4 py-2 rounded-lg font-medium transition text-sm',
-                material.id === currentMaterial?.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-300'
-              ]"
-            >
-              {{ material.title }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- タイピング練習開始ボタン -->
-      <div v-if="rawHIDData && !showTypingPractice" class="mt-6">
-        <button
-          @click="showTypingPractice = true"
-          class="w-full px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg transition shadow-lg"
-        >
-          ✍️ タイピング練習を開始
-        </button>
-      </div>
-
-      <!-- キーボードレイアウト表示（全レイヤー） -->
-      <div v-if="rawHIDData" class="mt-6">
-        <h2 class="text-2xl font-bold mb-4">キーマップ - 全レイヤー</h2>
-        
-        <LayerPanel
-          v-for="layerNum in layerCount"
-          :key="layerNum - 1"
-          :layer-number="layerNum - 1"
-          :is-visible="isLayerVisible(layerNum - 1)"
-          @toggle="toggleLayer(layerNum - 1)"
-        >
-          <KeyboardLayoutView 
-            :keymapData="rawHIDData" 
-            :layer="layerNum - 1"
-            :pressedKeys="getPressedKeys(layerNum - 1)"
-          />
-        </LayerPanel>
       </div>
 
       <!-- 生データ表示 -->
@@ -172,9 +151,6 @@ import { useKeymapMatcher } from '../composables/useKeymapMatcher'
 import { usePracticeMaterial } from '../composables/usePracticeMaterial'
 import { useTypingJudge } from '../composables/useTypingJudge'
 import KeyboardLayoutView from './KeyboardLayoutView.vue'
-import InstructionBanner from './InstructionBanner.vue'
-import KeyboardInfo from './KeyboardInfo.vue'
-import LayerPanel from './LayerPanel.vue'
 import DebugPanel from './DebugPanel.vue'
 import PracticeTextDisplay from './PracticeTextDisplay.vue'
 
@@ -182,7 +158,7 @@ import PracticeTextDisplay from './PracticeTextDisplay.vue'
 const { isLoading: isDetecting, requestKeyboardSelection } = useKeyboardDetector()
 const { isLoading, fetchKeymap, rawHIDData } = useKeyboardKeymap()
 const { selectedKeyboard, error, clearError } = useKeyboardState()
-const { toggleLayer, isLayerVisible, showOnlyLayer } = useLayerManager(0)
+const { showOnlyLayer } = useLayerManager(0)
 const { pressKeys, releaseKeys, getPressedKeys } = useKeyHighlight()
 const { handleKeyDown: convertKeyDown, handleKeyUp: convertKeyUp } = useKeyInput()
 const { findKeysInAllLayers } = useKeymapMatcher(rawHIDData)
@@ -203,6 +179,8 @@ const typingJudge = computed(() => {
 // Typing practice state
 const showTypingPractice = ref(false)
 const lastInputWasCorrect = ref(true)
+const selectedLayer = ref(0)
+const selectedMaterialId = ref(currentMaterial.value?.id || materials.value[0]?.id || '')
 
 // Computed
 const layerCount = computed(() => rawHIDData.value?.layerCount ?? 0)
@@ -226,6 +204,7 @@ async function handleSelectAndFetch() {
   clearError()
   const device = await requestKeyboardSelection()
   if (device) {
+    console.log('[Debug] Selected keyboard:', device)
     await handleContinue()
   }
 }
@@ -235,6 +214,8 @@ async function handleContinue() {
   await fetchKeymap(selectedKeyboard.value)
   // レイヤー表示を初期化（レイヤー0のみ）
   showOnlyLayer(0)
+  // タイピング練習画面を自動表示
+  showTypingPractice.value = true
 }
 
 function handleRetryTyping() {
@@ -249,6 +230,11 @@ function handleNextMaterial() {
     nextMaterial()
     handleRetryTyping()
   }
+}
+
+function handleMaterialChange() {
+  selectPracticeMaterial(selectedMaterialId.value)
+  handleRetryTyping()
 }
 
 // Keyboard event handlers
@@ -304,5 +290,11 @@ onUnmounted(() => {
 .keyboard-select-container {
   min-height: 100vh;
   background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+}
+
+.content-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
 }
 </style>

@@ -16,25 +16,25 @@ class Logger {
     this.enabled = import.meta.env?.DEV ?? true;
   }
 
-  debug(...args: any[]) {
+  debug(...args: unknown[]) {
     if (this.enabled) {
       console.log(`[${this.prefix}]`, ...args);
     }
   }
 
-  info(...args: any[]) {
+  info(...args: unknown[]) {
     if (this.enabled) {
       console.info(`[${this.prefix}]`, ...args);
     }
   }
 
-  warn(...args: any[]) {
+  warn(...args: unknown[]) {
     if (this.enabled) {
       console.warn(`[${this.prefix}]`, ...args);
     }
   }
 
-  error(...args: any[]) {
+  error(...args: unknown[]) {
     // エラーは常に出力
     console.error(`[${this.prefix}]`, ...args);
   }

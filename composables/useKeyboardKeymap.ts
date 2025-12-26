@@ -1,6 +1,6 @@
 import { ref, readonly } from 'vue';
 import type { KeyboardDevice, KeymapData, RawKeymapData } from '../types/keyboard';
-import type { HIDDevice, HIDInputReportEvent } from '../types/webhid';
+import type { HIDDevice, HIDInputReportEvent, HIDCollectionInfo } from '../types/webhid';
 import { useKeyboardState } from './useKeyboardState';
 import { 
   VIA_USAGE_PAGE, 
@@ -146,7 +146,7 @@ export function useKeyboardKeymap() {
    * VIA対応のコレクションを選択
    * VIA専用コレクション（0xff60/0x61）または通常のキーボードコレクション（0x01/0x06）を返す
    */
-  function selectVIACollection(device: HIDDevice): { collection: any; reportId: number } {
+  function selectVIACollection(device: HIDDevice): { collection: HIDCollectionInfo; reportId: number } {
     logger.debug('デバイス情報:', {
       productName: device.productName,
       opened: device.opened,

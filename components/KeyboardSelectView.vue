@@ -55,69 +55,23 @@
           />
           
           <!-- 完了時：結果表示 -->
-          <div v-else class="completion-section py-8 px-6 bg-green-50 border-2 border-green-200 rounded-lg h-[244px] flex flex-col justify-center">
-            <!-- 完了アイコンとタイトル -->
-            <div class="text-center mb-4">
-              <div class="flex items-center justify-center gap-2 mb-3">
-                <span class="text-3xl">🎉</span>
-                <h3 class="text-xl font-bold text-green-800">完了！</h3>
-              </div>
-              
-              <!-- ステータス表示 -->
-              <div class="grid grid-cols-3 gap-3 max-w-md mx-auto mb-4">
-                <div class="text-center p-2 bg-white rounded-lg shadow-sm">
-                  <div class="text-2xl font-bold text-green-600">{{ typingStatistics.correctCount }}</div>
-                  <div class="text-xs text-gray-600 mt-1">正解</div>
-                </div>
-                <div class="text-center p-2 bg-white rounded-lg shadow-sm">
-                  <div class="text-2xl font-bold text-red-600">{{ typingStatistics.incorrectCount }}</div>
-                  <div class="text-xs text-gray-600 mt-1">ミス</div>
-                </div>
-                <div class="text-center p-2 bg-white rounded-lg shadow-sm">
-                  <div class="text-2xl font-bold text-blue-600">{{ typingStatistics.accuracy }}%</div>
-                  <div class="text-xs text-gray-600 mt-1">正確率</div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- アクションボタン -->
-            <div class="flex gap-3 justify-center">
-              <button
-                @click="handleRetryTyping"
-                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow text-sm"
-              >
-                もう一度
-              </button>
-              <button
-                @click="handleNextMaterial"
-                :disabled="!canGoNextMaterial"
-                class="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition shadow text-sm"
-              >
-                次の練習へ
-              </button>
-            </div>
-          </div>
+          <CompletionPanel
+            v-else
+            :statistics="typingStatistics"
+            :can-go-next="canGoNextMaterial"
+            @retry="handleRetryTyping"
+            @next="handleNextMaterial"
+          />
         </div>
 
         <!-- キーボードレイアウト表示 -->
         <div class="mb-4">
           <!-- レイヤー選択タブ -->
-          <div class="mb-4 flex justify-center">
-            <div class="inline-flex gap-0 bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200">
-              <button
-                v-for="layerNum in layerCount"
-                :key="layerNum - 1"
-                @click="selectedLayer = layerNum - 1"
-                :class="[
-                  'px-6 py-2.5 font-medium text-sm transition-colors duration-200',
-                  selectedLayer === layerNum - 1
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                ]"
-              >
-                L{{ layerNum - 1 }}
-              </button>
-            </div>
+          <div class="mb-4">
+            <LayerSelector
+              v-model="selectedLayer"
+              :layer-count="layerCount"
+            />
           </div>
 
           <!-- キーボード表示 -->
@@ -146,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useKeyboardDetector } from '../composables/useKeyboardDetector'
 import { useKeyboardKeymap } from '../composables/useKeyboardKeymap'
 import { useKeyboardState } from '../composables/useKeyboardState'
@@ -156,9 +110,12 @@ import { useKeyInput } from '../composables/useKeyInput'
 import { useKeymapMatcher } from '../composables/useKeymapMatcher'
 import { usePracticeMaterial } from '../composables/usePracticeMaterial'
 import { useTypingJudge } from '../composables/useTypingJudge'
+import { useKeyboardEventHandler } from '../composables/useKeyboardEventHandler'
 import KeyboardLayoutView from './KeyboardLayoutView.vue'
 import DebugPanel from './DebugPanel.vue'
 import PracticeTextDisplay from './PracticeTextDisplay.vue'
+import CompletionPanel from './CompletionPanel.vue'
+import LayerSelector from './LayerSelector.vue'
 
 // Composables
 const { isLoading: isDetecting, requestKeyboardSelection } = useKeyboardDetector()
@@ -182,17 +139,35 @@ const typingJudge = computed(() => {
   return useTypingJudge(currentMaterial.value.content)
 })
 
-// Typing practice state
-const showTypingPractice = ref(false)
+// State
 const lastInputWasCorrect = ref(true)
 const selectedLayer = ref(0)
 const selectedMaterialId = ref(currentMaterial.value?.id || materials.value[0]?.id || '')
+
+// タイピング入力ハンドラー
+function handleTypingInput(inputChar: string) {
+  if (typingCompleted.value || !typingJudge.value) return
+  
+  const result = typingJudge.value.judge(inputChar)
+  lastInputWasCorrect.value = result.isCorrect
+}
+
+// キーボードイベントハンドラーの設定
+useKeyboardEventHandler(
+  rawHIDData,
+  convertKeyDown,
+  convertKeyUp,
+  findKeysInAllLayers,
+  pressKeys,
+  releaseKeys,
+  handleTypingInput
+)
 
 // Computed
 const layerCount = computed(() => rawHIDData.value?.layerCount ?? 0)
 const currentText = computed(() => practiceText.value)
 const canGoNextMaterial = computed(() => {
-  const currentIndex = materials.value.findIndex((m: any) => m.id === currentMaterial.value?.id)
+  const currentIndex = materials.value.findIndex((m) => m.id === currentMaterial.value?.id)
   return currentIndex < materials.value.length - 1
 })
 const typingStatus = computed(() => typingJudge.value?.status.value ?? 'waiting')
@@ -220,8 +195,6 @@ async function handleContinue() {
   await fetchKeymap(selectedKeyboard.value)
   // レイヤー表示を初期化（レイヤー0のみ）
   showOnlyLayer(0)
-  // タイピング練習画面を自動表示
-  showTypingPractice.value = true
 }
 
 function handleRetryTyping() {
@@ -242,54 +215,6 @@ function handleMaterialChange() {
   selectPracticeMaterial(selectedMaterialId.value)
   handleRetryTyping()
 }
-
-// Keyboard event handlers
-function onKeyDown(event: KeyboardEvent) {
-  const keyEvent = convertKeyDown(event)
-  if (!keyEvent || !rawHIDData.value) return
-  
-  event.preventDefault()
-  const matchedKeys = findKeysInAllLayers(keyEvent.qmkKeycode)
-  
-  matchedKeys.forEach((positions, layer) => {
-    pressKeys(layer, positions)
-  })
-
-  // タイピング判定処理
-  if (showTypingPractice.value && !typingCompleted.value && typingJudge.value) {
-    // 入力文字を取得（KeyInputEventからkey属性を使用）
-    const inputChar = keyEvent.key
-    
-    // 英数字1文字のみ判定対象
-    if (inputChar.length === 1 && /^[a-zA-Z0-9 ]$/.test(inputChar)) {
-      const result = typingJudge.value.judge(inputChar)
-      lastInputWasCorrect.value = result.isCorrect
-    }
-  }
-}
-
-function onKeyUp(event: KeyboardEvent) {
-  const keyEvent = convertKeyUp(event)
-  if (!keyEvent || !rawHIDData.value) return
-  
-  event.preventDefault()
-  const matchedKeys = findKeysInAllLayers(keyEvent.qmkKeycode)
-  
-  matchedKeys.forEach((positions, layer) => {
-    releaseKeys(layer, positions)
-  })
-}
-
-// Lifecycle
-onMounted(() => {
-  document.addEventListener('keydown', onKeyDown)
-  document.addEventListener('keyup', onKeyUp)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', onKeyDown)
-  document.removeEventListener('keyup', onKeyUp)
-})
 </script>
 
 <style scoped>

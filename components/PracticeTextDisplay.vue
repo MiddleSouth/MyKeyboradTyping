@@ -71,18 +71,22 @@ function getCharClass(index: number): string {
 <style scoped>
 .practice-text-display {
   width: 100%;
+  min-height: 244px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .text-content {
   font-size: 2rem;
   font-family: 'Courier New', monospace;
   line-height: 1.4;
-  padding: 0.25rem;
+  padding: 1.5rem;
   background: white;
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 1rem;
-  min-height: 60px;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;

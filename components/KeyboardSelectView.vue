@@ -1,10 +1,31 @@
 <template>
   <div class="keyboard-select-container">
     <div class="content-wrapper">
-      <h1 class="text-3xl font-bold mb-8">MyKeyboardTyping</h1>
+      <!-- ヘッダー -->
+      <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold">MyKeyboardTyping</h1>
+        
+        <!-- 右上のドロップダウン -->
+        <div v-if="rawHIDData" class="flex items-center gap-3">
+          <!-- 練習素材選択 -->
+          <select
+            v-model="selectedMaterialId"
+            @change="handleMaterialChange"
+            class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option
+              v-for="material in materials"
+              :key="material.id"
+              :value="material.id"
+            >
+              {{ material.title }}
+            </option>
+          </select>
+        </div>
+      </div>
 
       <!-- メインボタン -->
-      <div class="mb-6">
+      <div v-if="!rawHIDData" class="mb-6">
         <button
           @click="handleSelectAndFetch"
           :disabled="isDetecting || isLoading"
@@ -22,55 +43,80 @@
 
       <!-- タイピング練習セクション -->
       <div v-if="rawHIDData" class="mt-6">
-        <!-- 素材選択 -->
-        <div class="material-selector mb-4 p-3 bg-gray-50 rounded-lg">
-          <div class="flex items-center gap-3">
-            <label class="text-sm font-medium text-gray-700">練習素材:</label>
-            <select
-              v-model="selectedMaterialId"
-              @change="handleMaterialChange"
-              class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option
-                v-for="material in materials"
-                :key="material.id"
-                :value="material.id"
-              >
-                {{ material.title }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <!-- 練習テキスト表示 -->
+        <!-- 練習テキスト表示 / 完了時の結果表示 -->
         <div class="mb-4">
+          <!-- 練習中：テキスト表示 -->
           <PracticeTextDisplay
+            v-if="!typingCompleted"
             :text="currentText"
             :current-position="typingPosition"
             :is-completed="typingCompleted"
             :last-input-was-correct="lastInputWasCorrect"
           />
+          
+          <!-- 完了時：結果表示 -->
+          <div v-else class="completion-section py-8 px-6 bg-green-50 border-2 border-green-200 rounded-lg h-[244px] flex flex-col justify-center">
+            <!-- 完了アイコンとタイトル -->
+            <div class="text-center mb-4">
+              <div class="flex items-center justify-center gap-2 mb-3">
+                <span class="text-3xl">🎉</span>
+                <h3 class="text-xl font-bold text-green-800">完了！</h3>
+              </div>
+              
+              <!-- ステータス表示 -->
+              <div class="grid grid-cols-3 gap-3 max-w-md mx-auto mb-4">
+                <div class="text-center p-2 bg-white rounded-lg shadow-sm">
+                  <div class="text-2xl font-bold text-green-600">{{ typingStatistics.correctCount }}</div>
+                  <div class="text-xs text-gray-600 mt-1">正解</div>
+                </div>
+                <div class="text-center p-2 bg-white rounded-lg shadow-sm">
+                  <div class="text-2xl font-bold text-red-600">{{ typingStatistics.incorrectCount }}</div>
+                  <div class="text-xs text-gray-600 mt-1">ミス</div>
+                </div>
+                <div class="text-center p-2 bg-white rounded-lg shadow-sm">
+                  <div class="text-2xl font-bold text-blue-600">{{ typingStatistics.accuracy }}%</div>
+                  <div class="text-xs text-gray-600 mt-1">正確率</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- アクションボタン -->
+            <div class="flex gap-3 justify-center">
+              <button
+                @click="handleRetryTyping"
+                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow text-sm"
+              >
+                もう一度
+              </button>
+              <button
+                @click="handleNextMaterial"
+                :disabled="!canGoNextMaterial"
+                class="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition shadow text-sm"
+              >
+                次の練習へ
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- キーボードレイアウト表示 -->
         <div class="mb-4">
-          <!-- レイヤー選択ラジオボタン -->
-          <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-            <div class="flex items-center gap-3 flex-wrap">
-              <span class="font-medium text-gray-700 text-sm">レイヤー:</span>
-              <label
+          <!-- レイヤー選択タブ -->
+          <div class="mb-4 flex justify-center">
+            <div class="inline-flex gap-0 bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200">
+              <button
                 v-for="layerNum in layerCount"
                 :key="layerNum - 1"
-                class="flex items-center gap-2 cursor-pointer hover:bg-white px-3 py-1.5 rounded transition"
+                @click="selectedLayer = layerNum - 1"
+                :class="[
+                  'px-6 py-2.5 font-medium text-sm transition-colors duration-200',
+                  selectedLayer === layerNum - 1
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                ]"
               >
-                <input
-                  type="radio"
-                  :value="layerNum - 1"
-                  v-model="selectedLayer"
-                  class="w-4 h-4 text-blue-600"
-                />
-                <span class="text-sm font-medium">Layer {{ layerNum - 1 }}</span>
-              </label>
+                L{{ layerNum - 1 }}
+              </button>
             </div>
           </div>
 
@@ -84,51 +130,11 @@
           </div>
         </div>
 
-        <!-- ステータス表示 -->
-        <div class="status-panel mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg shadow">
-          <div class="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <div class="text-2xl font-bold text-green-600">{{ typingStatistics.correctCount }}</div>
-              <div class="text-xs text-gray-600">正解</div>
-            </div>
-            <div>
-              <div class="text-3xl font-bold text-red-600">{{ typingStatistics.incorrectCount }}</div>
-              <div class="text-xs text-gray-600">ミス</div>
-            </div>
-            <div>
-              <div class="text-3xl font-bold text-blue-600">{{ typingStatistics.accuracy }}%</div>
-              <div class="text-xs text-gray-600">正確率</div>
-            </div>
+        <!-- 待機メッセージ（固定高さでレイアウトのずれを防ぐ） -->
+        <div class="waiting-message mb-4 h-10 flex items-center justify-center">
+          <div v-if="typingStatus === 'waiting'" class="p-2 bg-blue-50 border border-blue-200 rounded-lg text-center text-blue-800 text-sm">
+            キーを入力して開始してください
           </div>
-        </div>
-
-        <!-- 完了メッセージ -->
-        <div v-if="typingCompleted" class="completion-message mb-4 p-4 bg-green-50 border-2 border-green-200 rounded-lg text-center">
-          <div class="text-5xl mb-4">🎉</div>
-          <h3 class="text-2xl font-bold text-green-800 mb-2">完了！</h3>
-          <p class="text-green-700 mb-6">
-            正確率: {{ typingStatistics.accuracy }}% ({{ typingStatistics.correctCount }}正解 / {{ typingStatistics.incorrectCount }}ミス)
-          </p>
-          <div class="flex gap-3 justify-center">
-            <button
-              @click="handleRetryTyping"
-              class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow"
-            >
-              もう一度
-            </button>
-            <button
-              @click="handleNextMaterial"
-              :disabled="!canGoNextMaterial"
-              class="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition shadow"
-            >
-              次の練習へ
-            </button>
-          </div>
-        </div>
-
-        <!-- 待機メッセージ -->
-        <div v-if="typingStatus === 'waiting'" class="waiting-message mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg text-center text-blue-800 text-sm">
-          キーを入力して開始してください
         </div>
       </div>
 

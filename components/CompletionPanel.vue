@@ -25,20 +25,34 @@
     </div>
     
     <!-- アクションボタン -->
-    <div class="flex gap-3 justify-center">
-      <button
-        @click="$emit('retry')"
-        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow text-sm"
-      >
-        もう一度
-      </button>
-      <button
-        @click="$emit('next')"
-        :disabled="!canGoNext"
-        class="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition shadow text-sm"
-      >
-        次の練習へ
-      </button>
+    <div class="flex flex-col items-center gap-3">
+      <div class="flex gap-3 justify-center">
+        <button
+          @click="$emit('retry')"
+          class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow text-sm"
+        >
+          もう一度
+        </button>
+        <button
+          @click="$emit('next')"
+          :disabled="!canGoNext"
+          class="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition shadow text-sm"
+        >
+          次の練習へ
+        </button>
+      </div>
+      
+      <!-- ショートカットキーのヒント -->
+      <div class="text-xs text-gray-500 flex items-center gap-4">
+        <span class="flex items-center gap-1">
+          <kbd class="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs font-mono">BackSpace</kbd>
+          もう一度
+        </span>
+        <span class="flex items-center gap-1">
+          <kbd class="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs font-mono">Enter</kbd>
+          次へ
+        </span>
+      </div>
     </div>
   </div>
 </template>

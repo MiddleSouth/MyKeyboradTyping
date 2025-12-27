@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useKeyboardDetector } from '../composables/useKeyboardDetector'
 import { useKeyboardKeymap } from '../composables/useKeyboardKeymap'
 import { useKeyboardState } from '../composables/useKeyboardState'
@@ -208,6 +208,33 @@ watch(() => typingCompleted.value, (completed) => {
     }
     // hasNextがfalseの場合は最後の単語なので、isAllWordsCompletedがtrueになり結果画面が表示される
   }
+})
+
+// 完了画面でのキーボードショートカット
+function handleCompletionShortcut(event: KeyboardEvent) {
+  // 完了画面表示中のみ処理
+  if (!isTypingFullyCompleted.value) return
+  
+  if (event.key === 'Backspace') {
+    // BackSpace: もう一度
+    event.preventDefault()
+    handleRetryTyping()
+  } else if (event.key === 'Enter') {
+    // Enter: 次の練習へ
+    event.preventDefault()
+    if (canGoNextMaterial.value) {
+      handleNextMaterial()
+    }
+  }
+}
+
+// ショートカットハンドラーを登録/解除
+onMounted(() => {
+  document.addEventListener('keydown', handleCompletionShortcut)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleCompletionShortcut)
 })
 
 // Methods

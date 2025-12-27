@@ -17,7 +17,7 @@
         <div class="progress-fill" :style="{ width: progress + '%' }"></div>
       </div>
       <div class="progress-text">
-        {{ currentPosition }} / {{ text.length }}
+        {{ overallCurrent !== undefined ? overallCurrent : currentPosition }} / {{ overallTotal !== undefined ? overallTotal : text.length }}
       </div>
     </div>
   </div>
@@ -31,10 +31,14 @@ interface Props {
   currentPosition: number
   isCompleted: boolean
   lastInputWasCorrect?: boolean | null
+  overallCurrent?: number
+  overallTotal?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  lastInputWasCorrect: null
+  lastInputWasCorrect: null,
+  overallCurrent: undefined,
+  overallTotal: undefined
 })
 
 /**
@@ -48,6 +52,13 @@ const textChars = computed(() => {
  * 進捗率
  */
 const progress = computed(() => {
+  // 全体の進捗が指定されている場合はそれを使用
+  if (props.overallTotal !== undefined && props.overallCurrent !== undefined) {
+    if (props.overallTotal === 0) return 0
+    return Math.round((props.overallCurrent / props.overallTotal) * 100)
+  }
+  
+  // 指定されていない場合は現在の単語の進捗
   if (props.text.length === 0) return 0
   return Math.round((props.currentPosition / props.text.length) * 100)
 })

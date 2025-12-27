@@ -47,11 +47,13 @@
         <div class="mb-4">
           <!-- 練習中：テキスト表示 -->
           <PracticeTextDisplay
-            v-if="!typingCompleted"
+            v-if="!isTypingFullyCompleted"
             :text="currentText"
             :current-position="typingPosition"
             :is-completed="typingCompleted"
             :last-input-was-correct="lastInputWasCorrect"
+            :overall-current="overallProgress.current + typingPosition"
+            :overall-total="overallProgress.total"
           />
           
           <!-- 完了時：結果表示 -->
@@ -100,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useKeyboardDetector } from '../composables/useKeyboardDetector'
 import { useKeyboardKeymap } from '../composables/useKeyboardKeymap'
 import { useKeyboardState } from '../composables/useKeyboardState'
@@ -129,14 +131,21 @@ const {
   currentMaterial, 
   materials,
   currentText: practiceText,
+  currentWord,
+  currentWordIndex,
+  totalWords,
+  isAllWordsCompleted,
+  overallProgress,
+  nextWord,
   nextMaterial, 
-  selectMaterial: selectPracticeMaterial 
+  selectMaterial: selectPracticeMaterial,
+  resetWords
 } = usePracticeMaterial()
 
 // タイピング判定はリアクティブに再生成
 const typingJudge = computed(() => {
-  if (!currentMaterial.value) return null
-  return useTypingJudge(currentMaterial.value.content)
+  if (!currentWord.value) return null
+  return useTypingJudge(currentWord.value)
 })
 
 // State
@@ -173,11 +182,32 @@ const canGoNextMaterial = computed(() => {
 const typingStatus = computed(() => typingJudge.value?.status.value ?? 'waiting')
 const typingPosition = computed(() => typingJudge.value?.currentPosition.value ?? 0)
 const typingCompleted = computed(() => typingJudge.value?.isCompleted.value ?? false)
+const isTypingFullyCompleted = computed(() => {
+  const result = isAllWordsCompleted.value
+  console.log('[isTypingFullyCompleted] computed:', result, 'currentWordIndex:', currentWordIndex.value, 'totalWords:', totalWords.value)
+  return result
+})
 const typingStatistics = computed(() => typingJudge.value?.statistics.value ?? {
   correctCount: 0,
   incorrectCount: 0,
   totalInputCount: 0,
   accuracy: 100
+})
+
+// タイピング完了時に自動で次の単語に進む
+watch(() => typingCompleted.value, (completed) => {
+  console.log('[watch] typingCompleted:', completed, 'isAllWordsCompleted:', isAllWordsCompleted.value)
+  if (completed) {
+    // 次の単語に進む（タイムラグなし）
+    const hasNext = nextWord()
+    console.log('[watch] nextWord() returned:', hasNext, 'isAllWordsCompleted after nextWord:', isAllWordsCompleted.value)
+    if (hasNext && typingJudge.value) {
+      // まだ次の単語がある場合はリセット
+      typingJudge.value.reset()
+      lastInputWasCorrect.value = true
+    }
+    // hasNextがfalseの場合は最後の単語なので、isAllWordsCompletedがtrueになり結果画面が表示される
+  }
 })
 
 // Methods
@@ -198,6 +228,7 @@ async function handleContinue() {
 }
 
 function handleRetryTyping() {
+  resetWords()
   if (typingJudge.value) {
     typingJudge.value.reset()
   }
@@ -221,6 +252,7 @@ function handleMaterialChange() {
 .keyboard-select-container {
   min-height: 100vh;
   background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  overflow-y: scroll; /* 常にスクロールバーを表示してレイアウトのずれを防ぐ */
 }
 
 .content-wrapper {

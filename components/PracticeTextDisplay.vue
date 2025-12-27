@@ -42,10 +42,17 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 /**
- * テキストを文字配列に変換
+ * テキストを文字配列に変換（視覚的な表示用）
  */
 const textChars = computed(() => {
-  return props.text.split('')
+  return props.text.split('').map(char => {
+    if (char === ' ') {
+      return '␣' // スペース記号
+    } else if (char === '\n') {
+      return '↵' // Enterキー記号
+    }
+    return char
+  })
 })
 
 /**
@@ -108,6 +115,13 @@ function getCharClass(index: number): string {
   display: inline-block;
   transition: all 0.2s ease;
   padding: 0 1px;
+}
+
+/* スペースとEnterキーの特別な表示 */
+.text-char:has-text("␣"),
+.text-char:has-text("↵") {
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .text-char.completed {

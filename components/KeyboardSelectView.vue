@@ -157,12 +157,21 @@ const selectedMaterialId = ref(currentMaterial.value?.id || materials.value[0]?.
 const totalCorrectCount = ref(0)
 const totalIncorrectCount = ref(0)
 
+// 完了時に使用されたEnterキーのタイムスタンプ（同じイベントを無視するため）
+const completionEnterTimestamp = ref<number | null>(null)
+
 // タイピング入力ハンドラー
-function handleTypingInput(inputChar: string) {
+function handleTypingInput(inputChar: string, event?: KeyboardEvent) {
   if (typingCompleted.value || !typingJudge.value) return
   
   const result = typingJudge.value.judge(inputChar)
   lastInputWasCorrect.value = result.isCorrect
+  
+  // 最後の文字が完了してEnterキーだった場合、タイムスタンプを記録
+  if (result.isCorrect && inputChar === '\n' && event && typingJudge.value.isCompleted.value) {
+    completionEnterTimestamp.value = event.timeStamp
+    console.log('[handleTypingInput] 完了時のEnterキータイムスタンプを記録:', event.timeStamp)
+  }
 }
 
 // キーボードイベントハンドラーの設定
@@ -238,6 +247,15 @@ function handleCompletionShortcut(event: KeyboardEvent) {
   // 完了画面表示中のみ処理
   if (!isTypingFullyCompleted.value) return
   
+  // 完了時に使用されたEnterキーと同じイベントを無視（タイムスタンプで判定）
+  if (event.key === 'Enter' && completionEnterTimestamp.value !== null) {
+    if (Math.abs(event.timeStamp - completionEnterTimestamp.value) < 50) {
+      console.log('[handleCompletionShortcut] 完了時のEnterキーと同じイベントなので無視')
+      completionEnterTimestamp.value = null // クリア
+      return
+    }
+  }
+  
   if (event.key === 'Backspace') {
     // BackSpace: もう一度
     event.preventDefault()
@@ -281,6 +299,7 @@ function handleRetryTyping() {
   resetWords()
   totalCorrectCount.value = 0
   totalIncorrectCount.value = 0
+  completionEnterTimestamp.value = null
   if (typingJudge.value) {
     typingJudge.value.reset()
   }

@@ -20,31 +20,31 @@ const BUILT_IN_MATERIALS: PracticeMaterial[] = [
   {
     id: 'basic-1',
     title: '基本練習 1',
-    content: ['aiueo', 'kakikukeko', 'sasisuseso', 'tatituteto', 'naninuneno'],
+    content: ['aiueo\n', 'kakikukeko\n', 'sasisuseso\n', 'tatituteto\n', 'naninuneno\n'],
     difficulty: 'easy'
   },
   {
     id: 'basic-2',
     title: '基本練習 2',
-    content: ['hamihimumeho', 'yamayumeyo', 'ramirurero', 'waon', 'nn'],
+    content: ['hamihimumeho\n', 'yamayumeyo\n', 'ramirurero\n', 'waon\n', 'nn\n'],
     difficulty: 'easy'
   },
   {
     id: 'basic-3',
     title: '英単語練習 1',
-    content: ['hello', 'world', 'keyboard', 'typing', 'practice'],
+    content: ['hello\n', 'world\n', 'keyboard\n', 'typing\n', 'practice\n'],
     difficulty: 'easy'
   },
   {
     id: 'basic-4',
     title: '英単語練習 2',
-    content: ['computer', 'mouse', 'display', 'software', 'hardware'],
+    content: ['computer\n', 'mouse\n', 'display\n', 'software\n', 'hardware\n'],
     difficulty: 'easy'
   },
   {
     id: 'sentence-1',
     title: '短文練習 1',
-    content: ['the quick brown fox', 'jumps over the lazy dog', 'pack my box with five dozen'],
+    content: ['the quick brown fox\n', 'jumps over the lazy dog\n', 'pack my box with five dozen\n'],
     difficulty: 'normal'
   }
 ]

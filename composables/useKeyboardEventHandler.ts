@@ -21,7 +21,7 @@ export function useKeyboardEventHandler(
   findKeysInAllLayers: (keycode: number) => Map<number, Set<string>>,
   pressKeys: (layer: number, positions: Set<string>) => void,
   releaseKeys: (layer: number, positions: Set<string>) => void,
-  onTypingInput?: (inputChar: string) => void
+  onTypingInput?: (inputChar: string, event?: KeyboardEvent) => void
 ) {
   function onKeyDown(event: KeyboardEvent) {
     const keyEvent = convertKeyDown(event)
@@ -39,9 +39,11 @@ export function useKeyboardEventHandler(
     if (onTypingInput) {
       const inputChar = keyEvent.key
       
-      // 英数字1文字のみ判定対象
+      // 英数字、スペース、Enterを判定対象に
       if (inputChar.length === 1 && /^[a-zA-Z0-9 ]$/.test(inputChar)) {
-        onTypingInput(inputChar)
+        onTypingInput(inputChar, event)
+      } else if (inputChar === 'Enter') {
+        onTypingInput('\n', event) // Enterキーを改行文字として渡す（イベントも渡す）
       }
     }
   }

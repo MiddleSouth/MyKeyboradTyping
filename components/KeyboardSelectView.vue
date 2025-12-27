@@ -153,6 +153,10 @@ const lastInputWasCorrect = ref(true)
 const selectedLayer = ref(0)
 const selectedMaterialId = ref(currentMaterial.value?.id || materials.value[0]?.id || '')
 
+// 全体の統計情報（全単語を通して累積）
+const totalCorrectCount = ref(0)
+const totalIncorrectCount = ref(0)
+
 // タイピング入力ハンドラー
 function handleTypingInput(inputChar: string) {
   if (typingCompleted.value || !typingJudge.value) return
@@ -187,17 +191,36 @@ const isTypingFullyCompleted = computed(() => {
   console.log('[isTypingFullyCompleted] computed:', result, 'currentWordIndex:', currentWordIndex.value, 'totalWords:', totalWords.value)
   return result
 })
-const typingStatistics = computed(() => typingJudge.value?.statistics.value ?? {
-  correctCount: 0,
-  incorrectCount: 0,
-  totalInputCount: 0,
-  accuracy: 100
+const typingStatistics = computed(() => {
+  const totalInputCount = totalCorrectCount.value + totalIncorrectCount.value
+  const accuracy = totalInputCount > 0 
+    ? Math.round((totalCorrectCount.value / totalInputCount) * 100) 
+    : 100
+  
+  return {
+    correctCount: totalCorrectCount.value,
+    incorrectCount: totalIncorrectCount.value,
+    totalInputCount,
+    accuracy
+  }
 })
 
 // タイピング完了時に自動で次の単語に進む
 watch(() => typingCompleted.value, (completed) => {
   console.log('[watch] typingCompleted:', completed, 'isAllWordsCompleted:', isAllWordsCompleted.value)
   if (completed) {
+    // 現在の単語の統計を累積
+    if (typingJudge.value) {
+      const stats = typingJudge.value.statistics.value
+      totalCorrectCount.value += stats.correctCount
+      totalIncorrectCount.value += stats.incorrectCount
+      console.log('[watch] 統計累積:', {
+        correct: stats.correctCount,
+        incorrect: stats.incorrectCount,
+        total: { correct: totalCorrectCount.value, incorrect: totalIncorrectCount.value }
+      })
+    }
+    
     // 次の単語に進む（タイムラグなし）
     const hasNext = nextWord()
     console.log('[watch] nextWord() returned:', hasNext, 'isAllWordsCompleted after nextWord:', isAllWordsCompleted.value)
@@ -256,6 +279,8 @@ async function handleContinue() {
 
 function handleRetryTyping() {
   resetWords()
+  totalCorrectCount.value = 0
+  totalIncorrectCount.value = 0
   if (typingJudge.value) {
     typingJudge.value.reset()
   }

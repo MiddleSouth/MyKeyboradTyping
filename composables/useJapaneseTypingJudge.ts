@@ -119,6 +119,98 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   })
 
   /**
+   * 特殊文字（Enter、長音符、句読点）の判定
+   */
+  function judgeSpecialChar(
+    hiragana: string,
+    expected: string,
+    inputChar: string
+  ): { isCorrect: boolean; shouldAdvance: boolean } {
+    const isSpecialChar = hiragana === '\n' || hiragana === 'ー' || hiragana === '、' || hiragana === '。'
+    if (!isSpecialChar) {
+      return { isCorrect: false, shouldAdvance: false }
+    }
+
+    if (expected === inputChar) {
+      logger.debug(`特殊文字入力検知: "${hiragana}" (期待: "${expected}", 入力: "${inputChar}")`)
+      return { isCorrect: true, shouldAdvance: true }
+    } else {
+      logger.debug(`不正解: "${hiragana}"(期待: "${expected}")、入力: "${inputChar}"`)
+      return { isCorrect: false, shouldAdvance: false }
+    }
+  }
+
+  /**
+   * 促音「っ」の判定（次の文字の子音重ね入力）
+   */
+  function judgeSokuon(
+    hiragana: string,
+    inputChar: string
+  ): { isHandled: boolean; isCorrect: boolean } {
+    if (hiragana !== 'っ' || currentRomajiPosition.value !== 0) {
+      return { isHandled: false, isCorrect: false }
+    }
+
+    // 次のローマ字パターンの最初の文字を取得
+    const nextRomajiPattern = currentRomajiIndex.value + 1 < romajiPatterns.value.length 
+      ? romajiPatterns.value[currentRomajiIndex.value + 1] 
+      : null
+    
+    // 次のパターンの最初の文字と一致すれば、促音として扱う
+    if (nextRomajiPattern && nextRomajiPattern[0] === inputChar) {
+      logger.debug(`促音入力検知: 次の文字"${nextRomajiPattern}"の子音"${inputChar}"`)
+      return { isHandled: true, isCorrect: true }
+    }
+
+    return { isHandled: false, isCorrect: false }
+  }
+
+  /**
+   * 通常のひらがなの判定（パターンマッチング）
+   */
+  function judgeNormalHiragana(
+    hiragana: string,
+    romaji: string,
+    inputChar: string
+  ): { isCorrect: boolean; newPattern: string | null } {
+    const partialInput = romaji.substring(0, currentRomajiPosition.value) + inputChar
+    const bestPattern = selectBestPattern(hiragana, partialInput)
+    
+    logger.debug(`入力: "${inputChar}", 部分入力: "${partialInput}", ベストパターン: "${bestPattern}"`)
+    
+    if (bestPattern && bestPattern.startsWith(partialInput)) {
+      const shouldUpdatePattern = bestPattern !== romaji
+      if (shouldUpdatePattern) {
+        logger.debug(`ローマ字パターンを変更: "${romaji}" → "${bestPattern}"`)
+      }
+      return { isCorrect: true, newPattern: shouldUpdatePattern ? bestPattern : null }
+    }
+
+    logger.debug(`不正解: 期待="${romaji[currentRomajiPosition.value]}" 入力="${inputChar}"`)
+    return { isCorrect: false, newPattern: null }
+  }
+
+  /**
+   * 現在のパターンを完了し次に進む
+   */
+  function advanceToNextPattern(): void {
+    currentRomajiIndex.value++
+    currentRomajiPosition.value = 0
+  }
+
+  /**
+   * 入力結果オブジェクトを作成
+   */
+  function createResult(isCorrect: boolean, expectedChar: string, inputChar: string): InputResult {
+    return {
+      isCorrect,
+      expectedChar,
+      inputChar,
+      position: currentRomajiIndex.value
+    }
+  }
+
+  /**
    * 入力された文字を判定
    */
   function judge(inputChar: string): InputResult {
@@ -132,111 +224,78 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
     const romaji = currentRomaji.value
     const hiragana = currentHiragana.value
     
+    // 完了チェック
     if (expected === null || !romaji || !hiragana) {
       logger.warn('すでに完了しています')
-      return {
-        isCorrect: false,
-        expectedChar: '',
-        inputChar,
-        position: currentRomajiIndex.value
-      }
+      return createResult(false, '', inputChar)
     }
 
     let isCorrect = false
 
-    // 特殊文字（1文字で完結する文字）の処理
-    // Enterキー、長音符、句読点など
-    const isSpecialChar = hiragana === '\n' || hiragana === 'ー' || hiragana === '、' || hiragana === '。'
-    
-    if (isSpecialChar) {
-      // 特殊文字は期待される入力と一致するか直接チェック
-      if (expected === inputChar) {
-        logger.debug(`特殊文字入力検知: "${hiragana}" (期待: "${expected}", 入力: "${inputChar}")`)
-        isCorrect = true
+    // 1. 特殊文字の判定
+    const specialResult = judgeSpecialChar(hiragana, expected, inputChar)
+    if (specialResult.isCorrect || specialResult.shouldAdvance) {
+      isCorrect = specialResult.isCorrect
+      if (isCorrect) {
         correctCount.value++
-        currentRomajiIndex.value++
-        currentRomajiPosition.value = 0
+        advanceToNextPattern()
       } else {
-        // 期待される文字と違う
         incorrectCount.value++
-        logger.debug(`不正解: "${hiragana}"(期待: "${expected}")、入力: "${inputChar}"`)
+      }
+      
+      const result = createResult(isCorrect, expected, inputChar)
+      inputHistory.value.push(result)
+      
+      if (isCompleted.value) {
+        status.value = 'completed'
+        logger.debug('タイピング完了', statistics.value)
+      }
+      
+      return result
+    }
+
+    // 2. 促音の判定
+    const sokuonResult = judgeSokuon(hiragana, inputChar)
+    if (sokuonResult.isHandled) {
+      isCorrect = sokuonResult.isCorrect
+      correctCount.value++
+      advanceToNextPattern()
+      
+      const result = createResult(isCorrect, expected, inputChar)
+      inputHistory.value.push(result)
+      
+      if (isCompleted.value) {
+        status.value = 'completed'
+        logger.debug('タイピング完了', statistics.value)
+      }
+      
+      return result
+    }
+
+    // 3. 通常のひらがな判定
+    const normalResult = judgeNormalHiragana(hiragana, romaji, inputChar)
+    isCorrect = normalResult.isCorrect
+    
+    if (isCorrect) {
+      // パターンが変わった場合は更新
+      if (normalResult.newPattern) {
+        romajiPatterns.value[currentRomajiIndex.value] = normalResult.newPattern
+      }
+      
+      currentRomajiPosition.value++
+      correctCount.value++
+      
+      // 現在のローマ字パターンが完了したか
+      const currentPattern = normalResult.newPattern || romaji
+      if (currentRomajiPosition.value >= currentPattern.length) {
+        logger.debug(`ローマ字パターン完了: "${currentPattern}" → "${hiragana}"`)
+        advanceToNextPattern()
       }
     } else {
-      // 通常のひらがな処理
-      // 現在の部分入力
-      const partialInput = romaji.substring(0, currentRomajiPosition.value) + inputChar
-      
-      // 促音「っ」の特殊処理：次の文字の子音を重ねることで入力可能
-      if (hiragana === 'っ' && currentRomajiPosition.value === 0) {
-        // 次のローマ字パターンの最初の文字を取得
-        const nextRomajiPattern = currentRomajiIndex.value + 1 < romajiPatterns.value.length 
-          ? romajiPatterns.value[currentRomajiIndex.value + 1] 
-          : null
-        
-        // 次のパターンの最初の文字と一致すれば、促音として扱う
-        if (nextRomajiPattern && nextRomajiPattern[0] === inputChar) {
-          logger.debug(`促音入力検知: 次の文字"${nextRomajiPattern}"の子音"${inputChar}"`)
-          isCorrect = true
-          correctCount.value++
-          currentRomajiIndex.value++
-          currentRomajiPosition.value = 0
-          
-          const result: InputResult = {
-            isCorrect,
-            expectedChar: expected,
-            inputChar,
-            position: currentRomajiIndex.value
-          }
-          inputHistory.value.push(result)
-          
-          // 完了判定
-          if (isCompleted.value) {
-            status.value = 'completed'
-            logger.debug('タイピング完了', statistics.value)
-          }
-          
-          return result
-        }
-      }
-      
-      // 最適なパターンを選択（ユーザーの入力に基づく）
-      const bestPattern = selectBestPattern(hiragana, partialInput)
-      
-      logger.debug(`入力: "${inputChar}", 期待: "${expected}", 部分入力: "${partialInput}", ベストパターン: "${bestPattern}"`)
-      
-      if (bestPattern && bestPattern.startsWith(partialInput)) {
-        // 有効な入力
-        isCorrect = true
-        
-        // パターンが変わった場合は更新
-        if (bestPattern !== romaji) {
-          logger.debug(`ローマ字パターンを変更: "${romaji}" → "${bestPattern}"`)
-          romajiPatterns.value[currentRomajiIndex.value] = bestPattern
-        }
-        
-        currentRomajiPosition.value++
-        correctCount.value++
-        
-        // 現在のローマ字パターンが完了したか
-        if (currentRomajiPosition.value >= bestPattern.length) {
-          logger.debug(`ローマ字パターン完了: "${bestPattern}" → "${hiragana}"`)
-          currentRomajiIndex.value++
-          currentRomajiPosition.value = 0
-        }
-      } else {
-        // 無効な入力
-        incorrectCount.value++
-        logger.debug(`不正解: 期待="${expected}" 入力="${inputChar}"`)
-      }
+      incorrectCount.value++
     }
 
-    const result: InputResult = {
-      isCorrect,
-      expectedChar: expected,
-      inputChar,
-      position: currentRomajiIndex.value
-    }
-
+    const result = createResult(isCorrect, expected, inputChar)
     inputHistory.value.push(result)
 
     // 完了判定

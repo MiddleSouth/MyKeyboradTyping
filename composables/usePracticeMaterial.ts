@@ -18,36 +18,170 @@ export interface PracticeMaterial {
  * ビルトイン練習素材
  */
 const BUILT_IN_MATERIALS: PracticeMaterial[] = [
+  // ============ 日本語基礎練習 ============
   {
-    id: 'basic-1',
-    title: '日本語基本練習 1',
-    content: ['あいうーえお\n', 'かきくけこ\n', 'さしすせそ\n', 'たちつてと\n', 'なにぬねの\n'],
+    id: 'jp-hiragana-basic',
+    title: '日本語 - ひらがな基礎',
+    content: [
+      'あいうえお\n',
+      'かきくけこ\n',
+      'さしすせそ\n',
+      'たちつてと\n',
+      'なにぬねの\n',
+      'はひふへほ\n',
+      'まみむめも\n',
+      'やゆよ\n',
+      'らりるれろ\n',
+      'わをん\n',
+      'がぎぐげご\n',
+      'ざじずぜぞ\n',
+      'だぢづでど\n',
+      'ばびぶべぼ\n',
+      'ぱぴぷぺぽ\n'
+    ],
     difficulty: 'easy',
     isJapanese: true
   },
   {
-    id: 'basic-2',
-    title: '基本練習 2',
-    content: ['hamihimumeho\n', 'yamayumeyo\n', 'ramirurero\n', 'waon\n', 'nn\n'],
+    id: 'jp-hiragana-youon',
+    title: '日本語 - 拗音・促音',
+    content: [
+      'きゃきゅきょ\n',
+      'しゃしゅしょ\n',
+      'ちゃちゅちょ\n',
+      'にゃにゅにょ\n',
+      'ひゃひゅひょ\n',
+      'みゃみゅみょ\n',
+      'りゃりゅりょ\n',
+      'ぎゃぎゅぎょ\n',
+      'じゃじゅじょ\n',
+      'びゃびゅびょ\n',
+      'ぴゃぴゅぴょ\n',
+      'っ\n',
+      'あっ\n',
+      'きって\n',
+      'がっこう\n',
+      'たっち\n',
+      'ずっと\n',
+      'さっき\n',
+      'まっすぐ\n',
+      'けっこん\n'
+    ],
+    difficulty: 'easy',
+    isJapanese: true
+  },
+  {
+    id: 'jp-daily-words',
+    title: '日本語 - 日常単語',
+    content: [
+      'こんにちは\n',
+      'ありがとう\n',
+      'おはよう\n',
+      'こんばんは\n',
+      'おやすみ\n',
+      'いただきます\n',
+      'ごちそうさま\n',
+      'すみません\n',
+      'よろしく\n',
+      'がんばって\n',
+      'たいへん\n',
+      'じかん\n',
+      'ばしょ\n',
+      'きょう\n',
+      'あした\n',
+      'きのう\n',
+      'しごと\n',
+      'がっこう\n',
+      'ともだち\n',
+      'かぞく\n'
+    ],
+    difficulty: 'easy',
+    isJapanese: true
+  },
+  
+  // ============ プログラミング練習（C#） ============
+  {
+    id: 'csharp-symbols',
+    title: 'C# - 基本記号',
+    content: [
+      '{}\n',
+      '[]\n',
+      '()\n',
+      ';\n',
+      ':\n',
+      '<>\n',
+      '==\n',
+      '!=\n',
+      '&&\n',
+      '||\n',
+      '+=\n',
+      '-=\n',
+      '*=\n',
+      '/=\n',
+      '=>\n'
+    ],
     difficulty: 'easy'
   },
   {
-    id: 'basic-3',
-    title: '英単語練習 1',
-    content: ['hello\n', 'world\n', 'keyboard\n', 'typing\n', 'practice\n'],
+    id: 'csharp-keywords',
+    title: 'C# - キーワード',
+    content: [
+      'class\n',
+      'public\n',
+      'private\n',
+      'protected\n',
+      'void\n',
+      'string\n',
+      'int\n',
+      'bool\n',
+      'return\n',
+      'if\n',
+      'else\n',
+      'for\n',
+      'while\n',
+      'foreach\n',
+      'new\n',
+      'this\n',
+      'base\n',
+      'static\n',
+      'async\n',
+      'await\n'
+    ],
     difficulty: 'easy'
   },
   {
-    id: 'basic-4',
-    title: '英単語練習 2',
-    content: ['computer\n', 'mouse\n', 'display\n', 'software\n', 'hardware\n'],
-    difficulty: 'easy'
-  },
-  {
-    id: 'sentence-1',
-    title: '短文練習 1',
-    content: ['the quick brown fox\n', 'jumps over the lazy dog\n', 'pack my box with five dozen\n'],
+    id: 'csharp-code-1',
+    title: 'C# - コード例 1',
+    content: [
+      'public class Program\n',
+      'private int count;\n',
+      'public string Name { get; set; }\n',
+      'return result;\n',
+      'if (condition)\n',
+      'for (int i = 0; i < length; i++)\n',
+      'var result = new List<string>();\n',
+      'await Task.Run(() => Process());\n',
+      'Console.WriteLine("Hello");\n',
+      'throw new Exception("Error");\n'
+    ],
     difficulty: 'normal'
+  },
+  {
+    id: 'csharp-code-2',
+    title: 'C# - コード例 2',
+    content: [
+      'public async Task<bool> ValidateAsync()\n',
+      'var items = list.Where(x => x.IsActive);\n',
+      'string text = $"Count: {count}";\n',
+      'try { Process(); } catch { }\n',
+      'using var stream = File.OpenRead(path);\n',
+      'record Person(string Name, int Age);\n',
+      'List<int> numbers = [1, 2, 3, 4, 5];\n',
+      'return value ?? defaultValue;\n',
+      'if (item is not null && item.IsValid)\n',
+      'await foreach (var item in source)\n'
+    ],
+    difficulty: 'hard'
   }
 ]
 

@@ -1,6 +1,6 @@
 import { ref, computed, readonly } from 'vue'
 import { createLogger } from './useLogger'
-import { hiraganaToRomaji, selectBestPattern, ROMAJI_TO_HIRAGANA_MAP } from './useRomajiMapper'
+import { hiraganaToRomaji, splitHiragana, selectBestPattern, ROMAJI_TO_HIRAGANA_MAP } from './useRomajiMapper'
 
 const logger = createLogger('JapaneseTypingJudge')
 
@@ -33,15 +33,14 @@ export interface TypingStatistics {
  * 日本語タイピング判定を行うComposable
  */
 export function useJapaneseTypingJudge(hiraganaText: string) {
-  // ひらがなテキストをローマ字パターンに変換
-  const hiraganaChars = hiraganaText.split('')
+  // ひらがなテキストを正しい単位で分割（表示用ラベルとして使用）
+  const hiraganaChars = splitHiragana(hiraganaText)
   const romajiPatterns = ref<string[]>(hiraganaToRomaji(hiraganaText))
   
   logger.debug(`日本語タイピングジャッジ初期化: "${hiraganaText}"`)
   logger.debug(`ひらがな文字:`, hiraganaChars)
   logger.debug(`ローマ字パターン:`, romajiPatterns.value)
   
-  const currentHiraganaIndex = ref(0)
   const currentRomajiIndex = ref(0)
   const currentRomajiPosition = ref(0) // 現在のローマ字パターン内の位置
   const status = ref<TypingStatus>('waiting')
@@ -50,13 +49,13 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   const inputHistory = ref<InputResult[]>([])
 
   /**
-   * 現在のひらがな文字
+   * 現在のひらがな文字（表示用ラベル）
    */
   const currentHiragana = computed(() => {
-    if (currentHiraganaIndex.value >= hiraganaChars.length) {
+    if (currentRomajiIndex.value >= hiraganaChars.length) {
       return null
     }
-    return hiraganaChars[currentHiraganaIndex.value]
+    return hiraganaChars[currentRomajiIndex.value]
   })
 
   /**
@@ -155,7 +154,6 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
         logger.debug(`特殊文字入力検知: "${hiragana}" (期待: "${expected}", 入力: "${inputChar}")`)
         isCorrect = true
         correctCount.value++
-        currentHiraganaIndex.value++
         currentRomajiIndex.value++
         currentRomajiPosition.value = 0
       } else {
@@ -167,6 +165,39 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
       // 通常のひらがな処理
       // 現在の部分入力
       const partialInput = romaji.substring(0, currentRomajiPosition.value) + inputChar
+      
+      // 促音「っ」の特殊処理：次の文字の子音を重ねることで入力可能
+      if (hiragana === 'っ' && currentRomajiPosition.value === 0) {
+        // 次のローマ字パターンの最初の文字を取得
+        const nextRomajiPattern = currentRomajiIndex.value + 1 < romajiPatterns.value.length 
+          ? romajiPatterns.value[currentRomajiIndex.value + 1] 
+          : null
+        
+        // 次のパターンの最初の文字と一致すれば、促音として扱う
+        if (nextRomajiPattern && nextRomajiPattern[0] === inputChar) {
+          logger.debug(`促音入力検知: 次の文字"${nextRomajiPattern}"の子音"${inputChar}"`)
+          isCorrect = true
+          correctCount.value++
+          currentRomajiIndex.value++
+          currentRomajiPosition.value = 0
+          
+          const result: InputResult = {
+            isCorrect,
+            expectedChar: expected,
+            inputChar,
+            position: currentRomajiIndex.value
+          }
+          inputHistory.value.push(result)
+          
+          // 完了判定
+          if (isCompleted.value) {
+            status.value = 'completed'
+            logger.debug('タイピング完了', statistics.value)
+          }
+          
+          return result
+        }
+      }
       
       // 最適なパターンを選択（ユーザーの入力に基づく）
       const bestPattern = selectBestPattern(hiragana, partialInput)
@@ -189,7 +220,6 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
         // 現在のローマ字パターンが完了したか
         if (currentRomajiPosition.value >= bestPattern.length) {
           logger.debug(`ローマ字パターン完了: "${bestPattern}" → "${hiragana}"`)
-          currentHiraganaIndex.value++
           currentRomajiIndex.value++
           currentRomajiPosition.value = 0
         }
@@ -222,7 +252,6 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
    * リセット
    */
   function reset(): void {
-    currentHiraganaIndex.value = 0
     currentRomajiIndex.value = 0
     currentRomajiPosition.value = 0
     status.value = 'waiting'
@@ -237,7 +266,6 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   return {
     hiraganaChars: readonly(ref(hiraganaChars)),
     romajiPatterns: readonly(romajiPatterns),
-    currentHiraganaIndex: readonly(currentHiraganaIndex),
     currentRomajiIndex: readonly(currentRomajiIndex),
     currentRomajiPosition: readonly(currentRomajiPosition),
     currentHiragana,

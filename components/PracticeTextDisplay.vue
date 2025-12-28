@@ -6,7 +6,6 @@
         <span
           v-for="(char, index) in textChars"
           :key="`hiragana-${index}`"
-          :class="getHiraganaClass(index)"
           class="hiragana-char"
         >
           {{ char }}
@@ -121,18 +120,6 @@ function getCharClass(index: number): string {
     if (props.lastInputWasCorrect === false) {
       return 'current error'
     }
-    return 'current'
-  }
-  return 'pending'
-}
-
-/**
- * ひらがなのCSSクラスを取得
- */
-function getHiraganaClass(index: number): string {
-  if (index < props.currentRomajiIndex) {
-    return 'completed'
-  } else if (index === props.currentRomajiIndex) {
     return 'current'
   }
   return 'pending'

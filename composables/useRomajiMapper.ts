@@ -50,6 +50,18 @@ export const ROMAJI_TO_HIRAGANA_MAP: RomajiPattern[] = [
   { hiragana: 'ぴゅ', patterns: ['pyu'] },
   { hiragana: 'ぴょ', patterns: ['pyo'] },
   
+  // 小書き文字
+  { hiragana: 'ぁ', patterns: ['la', 'xa'] },
+  { hiragana: 'ぃ', patterns: ['li', 'xi'] },
+  { hiragana: 'ぅ', patterns: ['lu', 'xu'] },
+  { hiragana: 'ぇ', patterns: ['le', 'xe'] },
+  { hiragana: 'ぉ', patterns: ['lo', 'xo'] },
+  { hiragana: 'ゃ', patterns: ['lya', 'xya'] },
+  { hiragana: 'ゅ', patterns: ['lyu', 'xyu'] },
+  { hiragana: 'ょ', patterns: ['lyo', 'xyo'] },
+  { hiragana: 'ゎ', patterns: ['lwa', 'xwa'] },
+  { hiragana: 'っ', patterns: ['ltu', 'xtu', 'ltsu'] },
+  
   // 2文字
   { hiragana: 'あ', patterns: ['a'] },
   { hiragana: 'い', patterns: ['i'] },
@@ -131,8 +143,78 @@ export const ROMAJI_TO_HIRAGANA_MAP: RomajiPattern[] = [
 
 /**
  * ひらがな文字列をローマ字パターンに変換
+ * ローマ字パターンと対応するひらがな文字の配列も返す
  */
 export function hiraganaToRomaji(hiragana: string): string[] {
+  const result: string[] = []
+  let i = 0
+  
+  while (i < hiragana.length) {
+    let matched = false
+    
+    // 促音「っ」の特殊処理
+    if (hiragana[i] === 'っ') {
+      // 次の文字を見る
+      if (i + 1 < hiragana.length) {
+        const nextChar = hiragana[i + 1]
+        // 次の文字のローマ字パターンを取得
+        let nextRomajiPattern: string | null = null
+        
+        // 最長一致で次の文字のパターンを探す
+        for (let len = 3; len >= 1; len--) {
+          const substr = hiragana.substring(i + 1, i + 1 + len)
+          const pattern = ROMAJI_TO_HIRAGANA_MAP.find(p => p.hiragana === substr)
+          if (pattern) {
+            nextRomajiPattern = pattern.patterns[0]
+            break
+          }
+        }
+        
+        // 次の文字が子音で始まる場合、その子音を使う
+        if (nextRomajiPattern && /^[bcdfghjklmnpqrstvwxyz]/.test(nextRomajiPattern)) {
+          result.push(nextRomajiPattern[0])
+          i++
+          matched = true
+        }
+      }
+      
+      // 次の文字がない、または母音で始まる場合は「ltu」を使う
+      if (!matched) {
+        result.push('ltu')
+        i++
+        matched = true
+      }
+    } else {
+      // 通常の文字処理
+      // 最長一致を試す（3文字、2文字、1文字の順）
+      for (let len = 3; len >= 1; len--) {
+        const substr = hiragana.substring(i, i + len)
+        const pattern = ROMAJI_TO_HIRAGANA_MAP.find(p => p.hiragana === substr)
+        
+        if (pattern) {
+          result.push(pattern.patterns[0]) // デフォルトは最初のパターン
+          i += len
+          matched = true
+          break
+        }
+      }
+    }
+    
+    if (!matched) {
+      // マッチしない文字はそのまま追加
+      result.push(hiragana[i])
+      i++
+    }
+  }
+  
+  return result
+}
+
+/**
+ * ひらがな文字列を正しい単位で分割
+ * 拗音（きゃ）などは1つの単位として扱う
+ */
+export function splitHiragana(hiragana: string): string[] {
   const result: string[] = []
   let i = 0
   
@@ -145,7 +227,7 @@ export function hiraganaToRomaji(hiragana: string): string[] {
       const pattern = ROMAJI_TO_HIRAGANA_MAP.find(p => p.hiragana === substr)
       
       if (pattern) {
-        result.push(pattern.patterns[0]) // デフォルトは最初のパターン
+        result.push(substr) // ひらがなの文字列をそのまま追加
         i += len
         matched = true
         break

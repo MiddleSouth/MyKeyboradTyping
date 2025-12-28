@@ -54,6 +54,10 @@
             :last-input-was-correct="lastInputWasCorrect"
             :overall-current="overallProgress.current + typingPosition"
             :overall-total="overallProgress.total"
+            :is-japanese="currentMaterial?.isJapanese || false"
+            :romaji-patterns="currentMaterial?.isJapanese ? ((typingJudge as any)?.romajiPatterns?.value || []) : []"
+            :current-romaji-index="currentMaterial?.isJapanese ? ((typingJudge as any)?.currentRomajiIndex?.value || 0) : 0"
+            :current-romaji-position="currentMaterial?.isJapanese ? ((typingJudge as any)?.currentRomajiPosition?.value || 0) : 0"
           />
           
           <!-- 完了時：結果表示 -->
@@ -112,6 +116,7 @@ import { useKeyInput } from '../composables/useKeyInput'
 import { useKeymapMatcher } from '../composables/useKeymapMatcher'
 import { usePracticeMaterial } from '../composables/usePracticeMaterial'
 import { useTypingJudge } from '../composables/useTypingJudge'
+import { useJapaneseTypingJudge } from '../composables/useJapaneseTypingJudge'
 import { useKeyboardEventHandler } from '../composables/useKeyboardEventHandler'
 import KeyboardLayoutView from './KeyboardLayoutView.vue'
 import DebugPanel from './DebugPanel.vue'
@@ -142,9 +147,12 @@ const {
   resetWords
 } = usePracticeMaterial()
 
-// タイピング判定はリアクティブに再生成
+// タイピング判定はリアクティブに再生成（日本語/英語で切り替え）
 const typingJudge = computed(() => {
   if (!currentWord.value) return null
+  if (currentMaterial.value?.isJapanese) {
+    return useJapaneseTypingJudge(currentWord.value)
+  }
   return useTypingJudge(currentWord.value)
 })
 
@@ -193,7 +201,12 @@ const canGoNextMaterial = computed(() => {
   return currentIndex < materials.value.length - 1
 })
 const typingStatus = computed(() => typingJudge.value?.status.value ?? 'waiting')
-const typingPosition = computed(() => typingJudge.value?.currentPosition.value ?? 0)
+const typingPosition = computed(() => {
+  if (currentMaterial.value?.isJapanese) {
+    return (typingJudge.value as any)?.currentRomajiPosition?.value ?? 0
+  }
+  return (typingJudge.value as any)?.currentPosition?.value ?? 0
+})
 const typingCompleted = computed(() => typingJudge.value?.isCompleted.value ?? false)
 const isTypingFullyCompleted = computed(() => {
   const result = isAllWordsCompleted.value

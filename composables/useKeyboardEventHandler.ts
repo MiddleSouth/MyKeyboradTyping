@@ -39,8 +39,8 @@ export function useKeyboardEventHandler(
     if (onTypingInput) {
       const inputChar = keyEvent.key
       
-      // 英数字、スペース、Enterを判定対象に
-      if (inputChar.length === 1 && /^[a-zA-Z0-9 ]$/.test(inputChar)) {
+      // 英数字、スペース、記号（ハイフン、カンマ、ピリオドなど）を判定対象に
+      if (inputChar.length === 1 && /^[a-zA-Z0-9 \-,.\/@;:\[\]'"]$/.test(inputChar)) {
         onTypingInput(inputChar, event)
       } else if (inputChar === 'Enter') {
         onTypingInput('\n', event) // Enterキーを改行文字として渡す（イベントも渡す）

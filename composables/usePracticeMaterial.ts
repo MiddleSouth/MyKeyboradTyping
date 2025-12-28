@@ -11,6 +11,7 @@ export interface PracticeMaterial {
   title: string
   content: string[]  // 複数の単語をサポート
   difficulty: 'easy' | 'normal' | 'hard'
+  isJapanese?: boolean  // 日本語かどうか
 }
 
 /**
@@ -19,9 +20,10 @@ export interface PracticeMaterial {
 const BUILT_IN_MATERIALS: PracticeMaterial[] = [
   {
     id: 'basic-1',
-    title: '基本練習 1',
-    content: ['aiueo\n', 'kakikukeko\n', 'sasisuseso\n', 'tatituteto\n', 'naninuneno\n'],
-    difficulty: 'easy'
+    title: '日本語基本練習 1',
+    content: ['あいうーえお\n', 'かきくけこ\n', 'さしすせそ\n', 'たちつてと\n', 'なにぬねの\n'],
+    difficulty: 'easy',
+    isJapanese: true
   },
   {
     id: 'basic-2',

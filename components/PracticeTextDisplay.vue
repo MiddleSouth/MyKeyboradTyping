@@ -1,6 +1,39 @@
 <template>
   <div class="practice-text-display">
-    <div class="text-content">
+    <!-- 日本語の場合：ひらがなとローマ字を縦並び表示 -->
+    <div v-if="isJapanese" class="text-content japanese-mode">
+      <div class="hiragana-row">
+        <span
+          v-for="(char, index) in textChars"
+          :key="`hiragana-${index}`"
+          :class="getHiraganaClass(index)"
+          class="hiragana-char"
+        >
+          {{ char }}
+        </span>
+      </div>
+      <div class="romaji-row">
+        <span
+          v-for="(romaji, index) in romajiPatterns"
+          :key="`romaji-${index}`"
+          :class="getRomajiClass(index)"
+          class="romaji-pattern"
+        >
+          <span
+            v-for="(char, charIndex) in romaji.split('')"
+            :key="`romaji-char-${charIndex}`"
+            :class="getRomajiCharClass(index, charIndex)"
+            class="romaji-char"
+          >
+            {{ char }}
+          </span>
+        </span>
+        <span class="cursor" :class="{ blink: !isCompleted }"></span>
+      </div>
+    </div>
+    
+    <!-- 英語の場合：従来通りの表示 -->
+    <div v-else class="text-content">
       <span
         v-for="(char, index) in textChars"
         :key="index"
@@ -33,12 +66,20 @@ interface Props {
   lastInputWasCorrect?: boolean | null
   overallCurrent?: number
   overallTotal?: number
+  isJapanese?: boolean
+  romajiPatterns?: string[]
+  currentRomajiIndex?: number
+  currentRomajiPosition?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   lastInputWasCorrect: null,
   overallCurrent: undefined,
-  overallTotal: undefined
+  overallTotal: undefined,
+  isJapanese: false,
+  romajiPatterns: () => [],
+  currentRomajiIndex: 0,
+  currentRomajiPosition: 0
 })
 
 /**
@@ -84,6 +125,50 @@ function getCharClass(index: number): string {
   }
   return 'pending'
 }
+
+/**
+ * ひらがなのCSSクラスを取得
+ */
+function getHiraganaClass(index: number): string {
+  if (index < props.currentRomajiIndex) {
+    return 'completed'
+  } else if (index === props.currentRomajiIndex) {
+    return 'current'
+  }
+  return 'pending'
+}
+
+/**
+ * ローマ字パターンのCSSクラスを取得
+ */
+function getRomajiClass(index: number): string {
+  if (index < props.currentRomajiIndex) {
+    return 'completed'
+  } else if (index === props.currentRomajiIndex) {
+    return 'current'
+  }
+  return 'pending'
+}
+
+/**
+ * ローマ字の各文字のCSSクラスを取得
+ */
+function getRomajiCharClass(patternIndex: number, charIndex: number): string {
+  if (patternIndex < props.currentRomajiIndex) {
+    return 'completed'
+  } else if (patternIndex === props.currentRomajiIndex) {
+    if (charIndex < props.currentRomajiPosition) {
+      return 'completed'
+    } else if (charIndex === props.currentRomajiPosition) {
+      if (props.lastInputWasCorrect === false) {
+        return 'current error'
+      }
+      return 'current'
+    }
+    return 'pending'
+  }
+  return 'pending'
+}
 </script>
 
 <style scoped>
@@ -109,6 +194,79 @@ function getCharClass(index: number): string {
   align-items: center;
   justify-content: center;
   position: relative;
+}
+
+/* 日本語モード：縦並び */
+.text-content.japanese-mode {
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hiragana-row {
+  font-size: 2.5rem;
+  font-weight: 600;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hiragana-char {
+  display: inline-block;
+  transition: all 0.2s ease;
+  padding: 0 4px;
+}
+
+.hiragana-char.completed {
+  color: #10b981;
+}
+
+.hiragana-char.current {
+  color: #3b82f6;
+  background: #dbeafe;
+  border-radius: 4px;
+}
+
+.hiragana-char.pending {
+  color: #9ca3af;
+}
+
+.romaji-row {
+  font-size: 1.25rem;
+  color: #6b7280;
+  display: flex;
+  gap: 0.5rem;
+  font-family: 'Courier New', monospace;
+}
+
+.romaji-pattern {
+  display: inline-flex;
+}
+
+.romaji-char {
+  display: inline-block;
+  transition: all 0.2s ease;
+  padding: 0 1px;
+}
+
+.romaji-char.completed {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.romaji-char.current {
+  color: #3b82f6;
+  background: #dbeafe;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.romaji-char.current.error {
+  color: #ef4444;
+  background: #fee2e2;
+  animation: shake 0.3s ease;
+}
+
+.romaji-char.pending {
+  color: #9ca3af;
 }
 
 .text-char {

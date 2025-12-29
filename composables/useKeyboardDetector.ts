@@ -1,0 +1,239 @@
+import { ref, readonly } from 'vue';
+import type { KeyboardDevice, KeyboardDeviceHandle } from '../types/keyboard';
+import type { HIDDevice } from '../types/webhid';
+import { useKeyboardState } from './useKeyboardState';
+import { VIA_USAGE_PAGE, VIA_USAGE } from '../constants/via';
+import { createLogger } from './useLogger';
+
+const logger = createLogger('KeyboardDetector');
+
+/**
+ * WebHID APIを使用してキーボードを検出するComposable
+ */
+export function useKeyboardDetector() {
+  const { setError, setSelectedKeyboard } = useKeyboardState();
+  const keyboards = ref<KeyboardDevice[]>([]);
+  const isLoading = ref(false);
+
+  /**
+   * デバイスがVIA対応キーボードであるかを判定
+   * VIA専用コレクションまたは通常のキーボードコレクションを持つデバイスを検出
+   */
+  function isVIASupportedDevice(device: HIDDevice): boolean {
+    // collections を確認してVIA対応かどうかを判定
+    if (!device.collections || device.collections.length === 0) {
+      return false;
+    }
+
+    // 優先順位1: VIA専用コレクション (usagePage: 0xff60, usage: 0x61)
+    for (const collection of device.collections) {
+      if (collection.usagePage === VIA_USAGE_PAGE && collection.usage === VIA_USAGE) {
+        logger.debug('VIA専用コレクション発見:', device.productName);
+        return true;
+      }
+    }
+
+    // 優先順位2: 通常のキーボードコレクション (usagePage: 0x01, usage: 0x06)
+    // QMKのVIAサポートは通常のキーボードエンドポイント経由でも動作する
+    for (const collection of device.collections) {
+      if (collection.usagePage === 0x01 && collection.usage === 0x06) {
+        logger.debug('通常のキーボードコレクション発見（VIA互換の可能性あり）:', device.productName);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * デバイスリストから重複を削除
+   */
+  function deduplicateDevices(devices: KeyboardDevice[]): KeyboardDevice[] {
+    const seen = new Set<string>();
+    const result: KeyboardDevice[] = [];
+
+    for (const device of devices) {
+      const key = `${device.vendorId}:${device.productId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(device);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * システムに接続されているキーボードを検出
+   */
+  async function detectKeyboards(): Promise<KeyboardDevice[]> {
+    // WebHID APIのサポート確認
+    if (!navigator.hid) {
+      setError('このブラウザはWebHID APIに対応していません。Chrome/Edgeを使用してください。');
+      return [];
+    }
+    const hid = navigator.hid;
+
+    isLoading.value = true;
+
+    try {
+      // 既に許可されているデバイスを取得
+      const devices = await hid.getDevices();
+      
+      logger.debug('検出されたデバイス数:', devices.length);
+      devices.forEach((device, index) => {
+        logger.debug(`Device ${index}:`, {
+          vendorId: `0x${device.vendorId.toString(16).toUpperCase().padStart(4, '0')}`,
+          productId: `0x${device.productId.toString(16).toUpperCase().padStart(4, '0')}`,
+          productName: device.productName,
+          opened: device.opened,
+          collections: device.collections?.length || 0,
+        });
+      });
+      
+      if (devices.length === 0) {
+        logger.debug('デバイスが見つかりません。');
+        keyboards.value = [];
+        return [];
+      }
+
+      // VIA対応キーボードのみをフィルタリング
+      const keyboardDevices = devices.filter(isVIASupportedDevice);
+      
+      logger.debug('VIA対応キーボードデバイス数:', keyboardDevices.length);
+
+      const detectedKeyboards: KeyboardDevice[] = keyboardDevices.map((device) => {
+        return {
+          vendorId: device.vendorId,
+          productId: device.productId,
+          productName: device.productName || `Unknown Device (${device.vendorId}:${device.productId})`,
+          deviceHandle: {
+            vendorId: device.vendorId,
+            productId: device.productId,
+            productName: device.productName || `Unknown Device`,
+            opened: device.opened,
+          },
+          isConnected: device.opened,
+        };
+      });
+
+      // デバイスを開く（許可がある場合）
+      for (const device of keyboardDevices) {
+        try {
+          if (!device.opened) {
+            await device.open();
+            logger.debug(`デバイスを開きました: ${device.productName}`);
+          }
+        } catch (err) {
+          logger.error(`デバイスオープンエラー:`, err);
+        }
+      }
+
+      // デバイス情報を再取得（opened状態を更新）
+      const detectedKeyboards2: KeyboardDevice[] = keyboardDevices.map((device) => {
+        return {
+          vendorId: device.vendorId,
+          productId: device.productId,
+          productName: device.productName || `Unknown Device (${device.vendorId}:${device.productId})`,
+          deviceHandle: {
+            vendorId: device.vendorId,
+            productId: device.productId,
+            productName: device.productName || `Unknown Device`,
+            opened: device.opened,
+          },
+          isConnected: device.opened,
+        };
+      });
+
+      // 重複を削除
+      const uniqueKeyboards = deduplicateDevices(detectedKeyboards2);
+
+      logger.debug('変換後のキーボード数:', uniqueKeyboards.length);
+      keyboards.value = uniqueKeyboards;
+      return uniqueKeyboards;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'キーボード検出中にエラーが発生しました';
+      setError(errorMsg);
+      keyboards.value = [];
+      logger.error('キーボード検出エラー:', err);
+      return [];
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * ユーザーに新しいキーボードを選択させる
+   */
+  async function requestKeyboardSelection(): Promise<KeyboardDevice | null> {
+    if (!navigator.hid) {
+      setError('このブラウザはWebHID APIに対応していません。');
+      return null;
+    }
+    const hid = navigator.hid;
+
+    try {
+      logger.debug('ユーザーにVIA対応キーボード選択ダイアログを表示');
+      // VIA対応キーボードまたは通常のキーボードをフィルタ
+      const devices = await hid.requestDevice({ 
+        filters: [
+          { usagePage: VIA_USAGE_PAGE, usage: VIA_USAGE },      // VIA専用コレクション
+          { usagePage: 0x01, usage: 0x06 }                      // 通常のキーボードコレクション
+        ]
+      });
+
+      if (devices.length === 0) {
+        logger.debug('ユーザーがデバイス選択をキャンセル');
+        return null;
+      }
+
+      const device = devices[0];
+      logger.debug('選択されたデバイス:', {
+        vendorId: `0x${device.vendorId.toString(16).toUpperCase().padStart(4, '0')}`,
+        productId: `0x${device.productId.toString(16).toUpperCase().padStart(4, '0')}`,
+        productName: device.productName,
+      });
+
+      const selectedKeyboard: KeyboardDevice = {
+        vendorId: device.vendorId,
+        productId: device.productId,
+        productName: device.productName || `Unknown Device (${device.vendorId}:${device.productId})`,
+        deviceHandle: {
+          vendorId: device.vendorId,
+          productId: device.productId,
+          productName: device.productName || `Unknown Device`,
+          opened: device.opened,
+        },
+        isConnected: device.opened,
+      };
+
+      // 既に存在するかチェック
+      const isDuplicate = keyboards.value.some(
+        (kb) => kb.vendorId === device.vendorId && kb.productId === device.productId
+      );
+
+      // リストに追加（重複していない場合）
+      if (!isDuplicate) {
+        keyboards.value.push(selectedKeyboard);
+      }
+
+      // グローバル状態に選択されたキーボードを設定
+      setSelectedKeyboard(selectedKeyboard);
+
+      return selectedKeyboard;
+    } catch (err) {
+      logger.error('キーボード選択エラー:', err);
+      if (err instanceof Error && err.name !== 'NotAllowedError') {
+        setError('キーボード選択中にエラーが発生しました');
+      }
+      return null;
+    }
+  }
+
+  return {
+    keyboards: readonly(keyboards),
+    isLoading: readonly(isLoading),
+    detectKeyboards,
+    requestKeyboardSelection,
+  };
+}

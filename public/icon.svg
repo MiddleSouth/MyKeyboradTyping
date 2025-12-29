@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <!-- 透明な赤いキーキャップのグラデーション -->
+    <linearGradient id="keyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B5A;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#FF4433;stop-opacity:0.95" />
+      <stop offset="100%" style="stop-color:#CC3322;stop-opacity:0.9" />
+    </linearGradient>
+    
+    <!-- ハイライト（透明感表現） -->
+    <linearGradient id="highlight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.4" />
+      <stop offset="50%" style="stop-color:#FFFFFF;stop-opacity:0.15" />
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </linearGradient>
+    
+    <!-- 側面のグラデーション -->
+    <linearGradient id="sideGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#CC3322;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#AA2211;stop-opacity:0.9" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 斜め上から見たキーキャップ -->
+  <g transform="translate(50, 50)">
+    <!-- 左側面（立体感） -->
+    <path d="M -38 -28 L -42 28 L -38 32 L -34 -24 Z" 
+          fill="url(#sideGradient)" opacity="0.6"/>
+    
+    <!-- 右側面 -->
+    <path d="M 38 -28 L 34 -24 L 38 32 L 42 28 Z" 
+          fill="#AA2211" opacity="0.5"/>
+    
+    <!-- 下側面 -->
+    <path d="M -38 32 L -34 36 L 34 36 L 38 32 Z" 
+          fill="#991100" opacity="0.7"/>
+    
+    <!-- キーキャップ上面（メイン） -->
+    <rect x="-38" y="-32" width="76" height="64" rx="6" 
+          fill="url(#keyGradient)" />
+    
+    <!-- ハイライト（透明感） -->
+    <rect x="-36" y="-30" width="50" height="35" rx="4" 
+          fill="url(#highlight)" />
+    
+    <!-- 文字 "K" -->
+    <text x="0" y="8" 
+          font-family="Arial, sans-serif" 
+          font-size="42" 
+          font-weight="bold" 
+          fill="white" 
+          text-anchor="middle" 
+          opacity="0.85">K</text>
+  </g>
+</svg>

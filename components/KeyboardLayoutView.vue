@@ -35,7 +35,10 @@ function isKeyPressed(matrix: [number, number]): boolean {
  */
 onMounted(async () => {
   try {
-    const response = await fetch('/keyboards/ergo68-layout.json')
+    // GitHub Pages環境判定: hostnameで判断
+    const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.includes('github.io')
+    const baseURL = isGitHubPages ? '/MyKeyboradTyping/' : '/'
+    const response = await fetch(`${baseURL}keyboards/ergo68-layout.json`)
     if (!response.ok) {
       throw new Error('Failed to load keyboard layout')
     }

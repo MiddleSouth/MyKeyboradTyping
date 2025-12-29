@@ -2,6 +2,8 @@
 
 自作キーボード向けタイピング練習ツール
 
+🌐 **https://MiddleSouth.github.io/MyKeyboradTyping/**
+
 ## 概要
 
 **あなたのキーボード配列そのままで、タイピング練習ができます。**

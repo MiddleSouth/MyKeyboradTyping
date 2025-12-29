@@ -5,5 +5,16 @@ export default defineNuxtConfig({
   
   modules: [
     '@nuxtjs/tailwindcss'
-  ]
+  ],
+
+  // GitHub Pages用の設定
+  app: {
+    baseURL: '/MyKeyboradTyping/',
+  },
+
+  ssr: false, // GitHub Pagesは静的ホスティングのみ
+
+  nitro: {
+    preset: 'static'
+  }
 })

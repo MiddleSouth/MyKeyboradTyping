@@ -50,6 +50,12 @@ export const ROMAJI_TO_HIRAGANA_MAP: RomajiPattern[] = [
   { hiragana: 'ぴゅ', patterns: ['pyu'] },
   { hiragana: 'ぴょ', patterns: ['pyo'] },
   
+  // ふ + 小書き文字の組み合わせ（fa, fi, fe, fo）
+  { hiragana: 'ふぁ', patterns: ['fa', 'fula'] },
+  { hiragana: 'ふぃ', patterns: ['fi', 'fuli'] },
+  { hiragana: 'ふぇ', patterns: ['fe', 'fule'] },
+  { hiragana: 'ふぉ', patterns: ['fo', 'fulo'] },
+  
   // 小書き文字
   { hiragana: 'ぁ', patterns: ['la', 'xa'] },
   { hiragana: 'ぃ', patterns: ['li', 'xi'] },
@@ -139,6 +145,7 @@ export const ROMAJI_TO_HIRAGANA_MAP: RomajiPattern[] = [
   { hiragana: 'ー', patterns: ['-'] },
   { hiragana: '、', patterns: [','] },
   { hiragana: '。', patterns: ['.'] },
+  { hiragana: ' ', patterns: [' '] },
 ]
 
 /**

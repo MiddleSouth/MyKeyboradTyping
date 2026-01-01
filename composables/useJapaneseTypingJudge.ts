@@ -119,14 +119,14 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   })
 
   /**
-   * 特殊文字（Enter、長音符、句読点）の判定
+   * 特殊文字（Enter、長音符、句読点、スペース）の判定
    */
   function judgeSpecialChar(
     hiragana: string,
     expected: string,
     inputChar: string
   ): { isCorrect: boolean; shouldAdvance: boolean } {
-    const isSpecialChar = hiragana === '\n' || hiragana === 'ー' || hiragana === '、' || hiragana === '。'
+    const isSpecialChar = hiragana === '\n' || hiragana === 'ー' || hiragana === '、' || hiragana === '。' || hiragana === ' '
     if (!isSpecialChar) {
       return { isCorrect: false, shouldAdvance: false }
     }

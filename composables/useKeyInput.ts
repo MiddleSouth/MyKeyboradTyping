@@ -97,6 +97,25 @@ export const PHYSICAL_KEY_TO_QMK: Record<string, number> = {
   'ArrowDown': 0x0051,
   'ArrowUp': 0x0052,
   
+  // テンキー
+  'NumLock': 0x0053,
+  'NumpadDivide': 0x0054,
+  'NumpadMultiply': 0x0055,
+  'NumpadSubtract': 0x0056,
+  'NumpadAdd': 0x0057,
+  'NumpadEnter': 0x0058,
+  'Numpad1': 0x0059,
+  'Numpad2': 0x005A,
+  'Numpad3': 0x005B,
+  'Numpad4': 0x005C,
+  'Numpad5': 0x005D,
+  'Numpad6': 0x005E,
+  'Numpad7': 0x005F,
+  'Numpad8': 0x0060,
+  'Numpad9': 0x0061,
+  'Numpad0': 0x0062,
+  'NumpadDecimal': 0x0063,
+  
   // モディファイアキー
   'ControlLeft': 0x00E0,
   'ShiftLeft': 0x00E1,

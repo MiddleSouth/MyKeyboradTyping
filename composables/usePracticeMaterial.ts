@@ -154,6 +154,29 @@ const BUILT_IN_MATERIALS: PracticeMaterial[] = [
     difficulty: 'normal',
     isJapanese: true
   },
+  {
+    id: 'jp-numbers',
+    title: '日本語 - 数字を含む文章',
+    content: [
+      'わたしは 20さいです。\n',
+      'きょうは 1がつ 1にちです。\n',
+      'でんわばんごうは 090-1234-5678です。\n',
+      'じかんは 10じ 30ぷんです。\n',
+      'りんごを 3こ かいました。\n',
+      'ぺーじは 123を みてください。\n',
+      'ごうけいは 4500えんです。\n',
+      '1から 100まで かぞえます。\n',
+      'ばんごうは 42ばんです。\n',
+      'ねんれいは 25さいいじょうです。\n',
+      '365にち まいにち がんばります。\n',
+      '2024ねん 12がつ 31にち。\n',
+      'せきは 5れつめの 7ばんです。\n',
+      'きょりは やく 15きろめーとるです。\n',
+      'へやばんごうは 301です。\n'
+    ],
+    difficulty: 'normal',
+    isJapanese: true
+  },
   
   // ============ 英単語練習 ============
   {
@@ -234,6 +257,28 @@ const BUILT_IN_MATERIALS: PracticeMaterial[] = [
       'implement\n',
       'extend\n',
       'inherit\n'
+    ],
+    difficulty: 'normal'
+  },
+  {
+    id: 'en-numbers',
+    title: '英語 - 数字を含む練習',
+    content: [
+      'I am 25 years old.\n',
+      'The year is 2024.\n',
+      'Room number is 301.\n',
+      'Call me at 555-1234.\n',
+      'Chapter 7, page 123.\n',
+      'Version 3.14.5 released.\n',
+      'Total is $49.99.\n',
+      'Count from 1 to 100.\n',
+      'Flight UA1234 departs at 10:30.\n',
+      'ZIP code is 12345.\n',
+      'My ID is 98765.\n',
+      'Score: 85 out of 100.\n',
+      'Address: 123 Main St.\n',
+      'Born in 1995.\n',
+      'Windows 11 is great.\n'
     ],
     difficulty: 'normal'
   },

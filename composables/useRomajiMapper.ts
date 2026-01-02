@@ -143,9 +143,22 @@ export const ROMAJI_TO_HIRAGANA_MAP: RomajiPattern[] = [
   
   // 特殊
   { hiragana: 'ー', patterns: ['-'] },
+  { hiragana: '-', patterns: ['-'] },
   { hiragana: '、', patterns: [','] },
   { hiragana: '。', patterns: ['.'] },
   { hiragana: ' ', patterns: [' '] },
+  
+  // 数字（そのまま入力）
+  { hiragana: '0', patterns: ['0'] },
+  { hiragana: '1', patterns: ['1'] },
+  { hiragana: '2', patterns: ['2'] },
+  { hiragana: '3', patterns: ['3'] },
+  { hiragana: '4', patterns: ['4'] },
+  { hiragana: '5', patterns: ['5'] },
+  { hiragana: '6', patterns: ['6'] },
+  { hiragana: '7', patterns: ['7'] },
+  { hiragana: '8', patterns: ['8'] },
+  { hiragana: '9', patterns: ['9'] },
 ]
 
 /**

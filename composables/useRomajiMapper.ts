@@ -56,6 +56,19 @@ export const ROMAJI_TO_HIRAGANA_MAP: RomajiPattern[] = [
   { hiragana: 'ふぇ', patterns: ['fe', 'fule'] },
   { hiragana: 'ふぉ', patterns: ['fo', 'fulo'] },
   
+  // う + 小書き文字の組み合わせ（wi, we, wo）
+  { hiragana: 'うぃ', patterns: ['wi', 'whi', 'uli'] },
+  { hiragana: 'うぇ', patterns: ['we', 'whe', 'ule'] },
+  { hiragana: 'うぉ', patterns: ['who', 'ulo'] },
+  
+  // て/で + 小書き文字の組み合わせ
+  { hiragana: 'てぃ', patterns: ['thi', 'teli'] },
+  { hiragana: 'てゅ', patterns: ['thu', 'telyu'] },
+  { hiragana: 'とぅ', patterns: ['twu', 'tolu'] },
+  { hiragana: 'でぃ', patterns: ['dhi', 'deli'] },
+  { hiragana: 'でゅ', patterns: ['dhu', 'delyu'] },
+  { hiragana: 'どぅ', patterns: ['dwu', 'dolu'] },
+  
   // 小書き文字
   { hiragana: 'ぁ', patterns: ['la', 'xa'] },
   { hiragana: 'ぃ', patterns: ['li', 'xi'] },

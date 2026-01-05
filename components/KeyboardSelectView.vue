@@ -33,6 +33,20 @@
         >
           {{ isDetecting || isLoading ? '処理中...' : '🎹 キーボードを選択' }}
         </button>
+        
+        <!-- 対応キーボード一覧 -->
+        <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h2 class="text-sm font-bold text-blue-900 mb-2">対応キーボード</h2>
+          <ul class="text-sm text-blue-800 space-y-1">
+            <li class="flex items-center">
+              <span class="mr-2">✓</span>
+              <span>Ergo68</span>
+            </li>
+          </ul>
+          <p class="mt-3 text-xs text-blue-700">
+            ※ 上記以外のキーボードは現在未対応です。今後のアップデートで対応予定です。
+          </p>
+        </div>
       </div>
 
       <!-- エラーメッセージ -->
@@ -252,6 +266,13 @@ watch(() => typingCompleted.value, (completed) => {
       lastInputWasCorrect.value = true
     }
     // hasNextがfalseの場合は最後の単語なので、isAllWordsCompletedがtrueになり結果画面が表示される
+  }
+})
+
+// 現在の素材が変更されたら、ドロップダウンの選択も同期
+watch(() => currentMaterial.value?.id, (newId) => {
+  if (newId && newId !== selectedMaterialId.value) {
+    selectedMaterialId.value = newId
   }
 })
 

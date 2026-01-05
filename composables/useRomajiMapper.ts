@@ -50,6 +50,25 @@ export const ROMAJI_TO_HIRAGANA_MAP: RomajiPattern[] = [
   { hiragana: 'ぴゅ', patterns: ['pyu'] },
   { hiragana: 'ぴょ', patterns: ['pyo'] },
   
+  // ふ + 小書き文字の組み合わせ（fa, fi, fe, fo）
+  { hiragana: 'ふぁ', patterns: ['fa', 'fula'] },
+  { hiragana: 'ふぃ', patterns: ['fi', 'fuli'] },
+  { hiragana: 'ふぇ', patterns: ['fe', 'fule'] },
+  { hiragana: 'ふぉ', patterns: ['fo', 'fulo'] },
+  
+  // う + 小書き文字の組み合わせ（wi, we, wo）
+  { hiragana: 'うぃ', patterns: ['wi', 'whi', 'uli'] },
+  { hiragana: 'うぇ', patterns: ['we', 'whe', 'ule'] },
+  { hiragana: 'うぉ', patterns: ['who', 'ulo'] },
+  
+  // て/で + 小書き文字の組み合わせ
+  { hiragana: 'てぃ', patterns: ['thi', 'teli'] },
+  { hiragana: 'てゅ', patterns: ['thu', 'telyu'] },
+  { hiragana: 'とぅ', patterns: ['twu', 'tolu'] },
+  { hiragana: 'でぃ', patterns: ['dhi', 'deli'] },
+  { hiragana: 'でゅ', patterns: ['dhu', 'delyu'] },
+  { hiragana: 'どぅ', patterns: ['dwu', 'dolu'] },
+  
   // 小書き文字
   { hiragana: 'ぁ', patterns: ['la', 'xa'] },
   { hiragana: 'ぃ', patterns: ['li', 'xi'] },
@@ -137,8 +156,22 @@ export const ROMAJI_TO_HIRAGANA_MAP: RomajiPattern[] = [
   
   // 特殊
   { hiragana: 'ー', patterns: ['-'] },
+  { hiragana: '-', patterns: ['-'] },
   { hiragana: '、', patterns: [','] },
   { hiragana: '。', patterns: ['.'] },
+  { hiragana: ' ', patterns: [' '] },
+  
+  // 数字（そのまま入力）
+  { hiragana: '0', patterns: ['0'] },
+  { hiragana: '1', patterns: ['1'] },
+  { hiragana: '2', patterns: ['2'] },
+  { hiragana: '3', patterns: ['3'] },
+  { hiragana: '4', patterns: ['4'] },
+  { hiragana: '5', patterns: ['5'] },
+  { hiragana: '6', patterns: ['6'] },
+  { hiragana: '7', patterns: ['7'] },
+  { hiragana: '8', patterns: ['8'] },
+  { hiragana: '9', patterns: ['9'] },
 ]
 
 /**

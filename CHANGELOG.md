@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-05
+
+### Added
+- 練習素材を追加
+- トップページに対応キーボード一覧を表示
+
+### Fixed
+- 一部のキー入力が認識されない問題を修正
+- 外来音の入力パターンを改善
+- ドロップダウンメニューが次の問題に進んだ時に自動更新されない問題を修正
+
 ## [1.0.0] - 2025-12-29
 
 ### Added

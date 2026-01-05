@@ -255,6 +255,13 @@ watch(() => typingCompleted.value, (completed) => {
   }
 })
 
+// 現在の素材が変更されたら、ドロップダウンの選択も同期
+watch(() => currentMaterial.value?.id, (newId) => {
+  if (newId && newId !== selectedMaterialId.value) {
+    selectedMaterialId.value = newId
+  }
+})
+
 // 完了画面でのキーボードショートカット
 function handleCompletionShortcut(event: KeyboardEvent) {
   // 完了画面表示中のみ処理

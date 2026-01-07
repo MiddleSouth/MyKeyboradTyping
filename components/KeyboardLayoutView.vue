@@ -23,25 +23,6 @@ const layoutData = keyboardModel.getKeymap()
 const KEY_PADDING = 4
 
 /**
- * Ergo68のマトリックス座標をVIA配列のインデックスに変換
- * VIAは2つのマトリックス行を1つのVIA行にまとめて保存：
- * - VIA[0, 0-6] = Matrix[0, 0-6]
- * - VIA[0, 7-13] = Matrix[1, 0-6]
- * - VIA[1, 0-6] = Matrix[2, 0-6]
- * - VIA[1, 7-13] = Matrix[3, 0-6]
- * - ...
- * 
- * つまり：
- * - VIA row = Matrix row ÷ 2（整数除算）
- * - VIA col = Matrix row が偶数なら col, 奇数なら col + 7
- */
-function convertMatrixToViaIndex(matrixRow: number, matrixCol: number): [number, number] {
-  const viaRow = Math.floor(matrixRow / 2)
-  const viaCol = (matrixRow % 2 === 0) ? matrixCol : matrixCol + 7
-  return [viaRow, viaCol]
-}
-
-/**
  * 指定されたキーが押されているかチェック
  */
 function isKeyPressed(pos: string): boolean {
@@ -65,15 +46,14 @@ const svgDimensions = computed(() => {
 function getKeycodeForPosition(keyModel: KeyModel): number | null {
   if (!props.keymapData || !keyModel.pos) return null
   
-  const [matrixRow, matrixCol] = keyModel.pos.split(',').map(Number)
-  const [viaRow, viaCol] = convertMatrixToViaIndex(matrixRow, matrixCol)
+  const [row, col] = keyModel.pos.split(',').map(Number)
   const layerData = props.keymapData.keymap_by_layer[props.layer]
   
-  if (!layerData || !layerData[viaRow] || layerData[viaRow][viaCol] === undefined) {
+  if (!layerData || !layerData[row] || layerData[row][col] === undefined) {
     return null
   }
   
-  return layerData[viaRow][viaCol]
+  return layerData[row][col]
 }
 
 /**

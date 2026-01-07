@@ -263,6 +263,29 @@ export default class KeyboardModel {
     return { keymaps, width, height, left, top };
   }
 
+  /**
+   * キーボードのマトリックスサイズを計算
+   * KLE定義内のすべての座標から最大値を取得
+   */
+  getMatrixSize(): { rows: number; cols: number } {
+    let maxRow = 0;
+    let maxCol = 0;
+
+    this._keyModels.forEach((model) => {
+      if (model.pos) {
+        const [row, col] = model.pos.split(',').map(Number);
+        maxRow = Math.max(maxRow, row);
+        maxCol = Math.max(maxCol, col);
+      }
+    });
+
+    // 0-indexedなので、実際のサイズは+1
+    return {
+      rows: maxRow + 1,
+      cols: maxCol + 1,
+    };
+  }
+
   private parseKeyMap(keymap: (string | KeyOp)[][]): KeyModel[] {
     type Position = {
       left: number;

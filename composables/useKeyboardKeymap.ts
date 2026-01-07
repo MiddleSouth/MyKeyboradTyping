@@ -12,6 +12,8 @@ import {
 } from '../constants/via';
 import { createLogger } from './useLogger';
 import { parseLayerBuffer } from '../utils/keymapParser';
+import KeyboardModel from '../utils/KeyboardModel';
+import { Ergo68Keymap } from '../assets/keymaps/Ergo68Keymap';
 
 const logger = createLogger('KeyboardKeymap');
 
@@ -269,14 +271,14 @@ export function useKeyboardKeymap() {
 
   /**
    * キーボードのマトリクスサイズを取得
-   * TODO: 将来的にはキーボード定義JSONから取得すべき
+   * キーボード定義(KLE)から自動計算
    */
   function getMatrixSize(): { rows: number; cols: number } {
-    // 現在は固定値（Ergo68用）
-    const rows = 5;
-    const cols = 14;
-    logger.debug('マトリクスサイズ（固定値）: rows=', rows, 'cols=', cols);
-    return { rows, cols };
+    // TODO: 将来的には複数のキーボード定義に対応
+    const keyboardModel = new KeyboardModel(Ergo68Keymap);
+    const matrixSize = keyboardModel.getMatrixSize();
+    logger.debug('マトリクスサイズ（定義から自動取得）: rows=', matrixSize.rows, 'cols=', matrixSize.cols);
+    return matrixSize;
   }
 
   /**

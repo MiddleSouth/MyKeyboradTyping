@@ -271,7 +271,7 @@ export function useKeyboardKeymap() {
 
   /**
    * キーボードのマトリクスサイズを取得
-   * キーボード定義(KLE)から自動計算
+   * キーボード定義のmatrixフィールドから取得（フォールバック：レイアウトから自動計算）
    */
   async function getMatrixSize(keyboard: KeyboardDevice): Promise<{ rows: number; cols: number }> {
     try {
@@ -283,11 +283,21 @@ export function useKeyboardKeymap() {
         return { rows: 10, cols: 7 }; // フォールバック値
       }
       
-      // レイアウトデータからKeyboardModelを作成
+      // matrixフィールドから取得（KLE標準）
+      if (keyboardDef.matrix) {
+        logger.debug('マトリクスサイズ（定義から取得）:', {
+          keyboard: keyboardDef.name,
+          rows: keyboardDef.matrix.rows,
+          cols: keyboardDef.matrix.cols
+        });
+        return keyboardDef.matrix;
+      }
+      
+      // matrixフィールドがない場合はレイアウトから自動計算（後方互換性）
       const keyboardModel = new KeyboardModel(keyboardDef.layout);
       const matrixSize = keyboardModel.getMatrixSize();
       
-      logger.debug('マトリクスサイズ（定義から自動取得）:', {
+      logger.debug('マトリクスサイズ（レイアウトから自動計算）:', {
         keyboard: keyboardDef.name,
         rows: matrixSize.rows,
         cols: matrixSize.cols

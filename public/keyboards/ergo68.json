@@ -6,6 +6,10 @@
   "productId": "0x0001",
   "productNames": ["Ergo68", "Salicylic_acid3 Ergo68"],
   "source": "https://remap-keys.app/catalog/qIgO7rOq7GMRsGf6QhlY",
+  "matrix": {
+    "rows": 10,
+    "cols": 7
+  },
   "layout": [
     [{"x": 3}, "0,3", {"x": 9}, "5,3"],
     [{"y": -0.87, "x": 2}, "0,2", {"x": 1}, "0,4", {"x": 7}, "5,4", {"x": 1}, "5,2"],

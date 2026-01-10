@@ -9,6 +9,10 @@ export interface KeyboardDefinition {
   productId?: string;
   productNames?: string[];
   source?: string;
+  matrix: {
+    rows: number;
+    cols: number;
+  };
   layout: any[]; // KLE layout array
 }
 

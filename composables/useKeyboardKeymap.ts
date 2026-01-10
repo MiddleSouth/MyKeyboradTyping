@@ -13,7 +13,7 @@ import {
 import { createLogger } from './useLogger';
 import { parseLayerBuffer } from '../utils/keymapParser';
 import KeyboardModel from '../utils/KeyboardModel';
-import { Ergo68Keymap } from '../assets/keymaps/Ergo68Keymap';
+import { findKeyboardByProductName } from '../utils/keyboardLoader';
 
 const logger = createLogger('KeyboardKeymap');
 
@@ -126,7 +126,7 @@ export function useKeyboardKeymap() {
 
       // キーマップを取得（VIA互換コマンド）
       // VIAのキーマップ取得コマンド
-      const keymapRawData = await getKeymapViaVIA(selectedDevice);
+      const keymapRawData = await getKeymapViaVIA(selectedDevice, keyboard);
       rawHIDData.value = keymapRawData;
 
       // 生データを構造化
@@ -273,12 +273,32 @@ export function useKeyboardKeymap() {
    * キーボードのマトリクスサイズを取得
    * キーボード定義(KLE)から自動計算
    */
-  function getMatrixSize(): { rows: number; cols: number } {
-    // TODO: 将来的には複数のキーボード定義に対応
-    const keyboardModel = new KeyboardModel(Ergo68Keymap);
-    const matrixSize = keyboardModel.getMatrixSize();
-    logger.debug('マトリクスサイズ（定義から自動取得）: rows=', matrixSize.rows, 'cols=', matrixSize.cols);
-    return matrixSize;
+  async function getMatrixSize(keyboard: KeyboardDevice): Promise<{ rows: number; cols: number }> {
+    try {
+      // Product nameでキーボード定義を検索
+      const keyboardDef = await findKeyboardByProductName(keyboard.productName);
+      
+      if (!keyboardDef) {
+        logger.warn(`キーボード定義が見つかりません: ${keyboard.productName}, デフォルト値を使用`);
+        return { rows: 10, cols: 7 }; // フォールバック値
+      }
+      
+      // レイアウトデータからKeyboardModelを作成
+      const keyboardModel = new KeyboardModel(keyboardDef.layout);
+      const matrixSize = keyboardModel.getMatrixSize();
+      
+      logger.debug('マトリクスサイズ（定義から自動取得）:', {
+        keyboard: keyboardDef.name,
+        rows: matrixSize.rows,
+        cols: matrixSize.cols
+      });
+      
+      return matrixSize;
+    } catch (error) {
+      logger.error('キーボード定義の読み込みエラー:', error);
+      // エラー時はデフォルト値を返す
+      return { rows: 10, cols: 7 };
+    }
   }
 
   /**
@@ -371,7 +391,7 @@ export function useKeyboardKeymap() {
    * 
    * Remapのキーマップ取得フローに基づく実装
    */
-  async function getKeymapViaVIA(device: HIDDevice): Promise<RawKeymapData> {
+  async function getKeymapViaVIA(device: HIDDevice, keyboard: KeyboardDevice): Promise<RawKeymapData> {
     try {
       logger.debug('VIA プロトコルでキーマップ取得を開始');
 
@@ -385,7 +405,7 @@ export function useKeyboardKeymap() {
       const layerCount = await getLayerCount(device, reportId);
 
       // 4. マトリクスサイズを取得
-      const { rows, cols } = getMatrixSize();
+      const { rows, cols } = await getMatrixSize(keyboard);
 
       // 5. 全レイヤーのキーマップデータを取得
       const keymapByLayer = await fetchAllLayers(device, reportId, layerCount, rows, cols);

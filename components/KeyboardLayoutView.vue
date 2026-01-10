@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { RawKeymapData } from '../types/keyboard'
 import { convertKeycodeToLabel } from '../utils/keycodeConverter'
 import KeyboardModel from '../utils/KeyboardModel'
 import type KeyModel from '../utils/KeyModel'
-import { Ergo68Keymap } from '../assets/keymaps/Ergo68Keymap'
+import { findKeyboardByProductName } from '../utils/keyboardLoader'
 
 interface Props {
   keymapData: RawKeymapData | null
@@ -16,9 +16,40 @@ const props = withDefaults(defineProps<Props>(), {
   layer: 0
 })
 
-// KeyboardModelを使用してレイアウトを処理
-const keyboardModel = new KeyboardModel(Ergo68Keymap)
-const layoutData = keyboardModel.getKeymap()
+// キーボードレイアウトデータ（非同期で読み込む）
+const layoutData = ref<any | null>(null)
+const isLoadingLayout = ref(true)
+
+// キーボード定義を動的に読み込む
+async function loadKeyboardDefinition() {
+  if (!props.keymapData) {
+    isLoadingLayout.value = false
+    return
+  }
+  
+  try {
+    isLoadingLayout.value = true
+    const keyboardDef = await findKeyboardByProductName(props.keymapData.productName)
+    
+    if (!keyboardDef) {
+      console.warn(`キーボード定義が見つかりません: ${props.keymapData.productName}`)
+      isLoadingLayout.value = false
+      return
+    }
+    
+    const keyboardModel = new KeyboardModel(keyboardDef.layout)
+    layoutData.value = keyboardModel.getKeymap()
+    isLoadingLayout.value = false
+  } catch (error) {
+    console.error('キーボード定義の読み込みエラー:', error)
+    isLoadingLayout.value = false
+  }
+}
+
+// keymapDataが変更されたらレイアウトを再読み込み
+watch(() => props.keymapData, () => {
+  loadKeyboardDefinition()
+}, { immediate: true })
 
 const KEY_PADDING = 4
 
@@ -34,9 +65,12 @@ function isKeyPressed(pos: string): boolean {
  * SVG全体のサイズを計算
  */
 const svgDimensions = computed(() => {
+  if (!layoutData.value) {
+    return { width: 800, height: 400 }
+  }
   return {
-    width: layoutData.width + KEY_PADDING * 2,
-    height: layoutData.height + KEY_PADDING * 2
+    width: layoutData.value.width + KEY_PADDING * 2,
+    height: layoutData.value.height + KEY_PADDING * 2
   }
 })
 
@@ -77,9 +111,12 @@ function getKeyLabelLines(keyModel: KeyModel): string[] {
  * キーのSVG座標を計算
  */
 function getKeyRect(keyModel: KeyModel) {
+  if (!layoutData.value) {
+    return { x: 0, y: 0, width: 50, height: 50 }
+  }
   return {
-    x: keyModel.left - layoutData.left + KEY_PADDING,
-    y: keyModel.top - layoutData.top + KEY_PADDING,
+    x: keyModel.left - layoutData.value.left + KEY_PADDING,
+    y: keyModel.top - layoutData.value.top + KEY_PADDING,
     width: keyModel.width,
     height: keyModel.height
   }
@@ -99,9 +136,19 @@ function getTextPosition(keyModel: KeyModel) {
 
 <template>
   <div class="keyboard-layout-view">
+    <!-- レイアウト読み込み中 -->
+    <div v-if="isLoadingLayout" class="text-gray-500">
+      キーボードレイアウトを読み込み中...
+    </div>
+    
     <!-- キーマップデータがない場合 -->
-    <div v-if="!keymapData" class="text-gray-500">
+    <div v-else-if="!keymapData" class="text-gray-500">
       キーマップデータがありません。キーボードを接続してください。
+    </div>
+    
+    <!-- レイアウトデータがない場合 -->
+    <div v-else-if="!layoutData" class="text-gray-500">
+      キーボードレイアウトが見つかりません。
     </div>
     
     <!-- SVGキーボード描画 -->

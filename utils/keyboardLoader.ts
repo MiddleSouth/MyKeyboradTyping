@@ -34,9 +34,28 @@ function normalizeToFilename(productName: string): string {
  * @returns Promise of the keyboard definition
  */
 export async function loadKeyboardDefinition(filename: string): Promise<KeyboardDefinition> {
-  const response = await fetch(`/keyboards/${filename}`);
+  // Nuxtの<base>タグまたは現在のパスからbaseURLを取得
+  let baseURL = '/';
+  if (typeof window !== 'undefined') {
+    const baseElement = document.querySelector('base');
+    if (baseElement?.href) {
+      // <base>タグのhrefから相対パス部分を抽出
+      const url = new URL(baseElement.href);
+      baseURL = url.pathname;
+    }
+  }
+  
+  // baseURLの末尾にスラッシュを確保
+  if (!baseURL.endsWith('/')) {
+    baseURL += '/';
+  }
+  
+  // 絶対パスとして構築
+  const path = `${baseURL}keyboards/${filename}`;
+  
+  const response = await fetch(path);
   if (!response.ok) {
-    throw new Error(`Failed to load keyboard definition: ${filename}`);
+    throw new Error(`Failed to load keyboard definition: ${filename} (Path: ${path})`);
   }
   return response.json();
 }

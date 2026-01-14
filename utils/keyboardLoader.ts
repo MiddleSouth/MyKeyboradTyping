@@ -31,19 +31,22 @@ function normalizeToFilename(productName: string): string {
 /**
  * Load keyboard definition JSON from public/keyboards/
  * @param filename - The filename of the keyboard JSON (e.g., "ergo68.json")
+ * @param baseURL - Optional base URL (e.g., '/MyKeyboradTyping/'). If not provided, will auto-detect.
  * @returns Promise of the keyboard definition
  */
-export async function loadKeyboardDefinition(filename: string): Promise<KeyboardDefinition> {
-  // Nuxtの<base>タグからbaseURLを取得（最も確実な方法）
-  let baseURL = '/';
-  if (typeof document !== 'undefined') {
-    const baseElement = document.querySelector('base');
-    if (baseElement?.href) {
-      try {
-        const url = new URL(baseElement.href);
-        baseURL = url.pathname;
-      } catch (e) {
-        console.warn('Failed to parse base URL:', e);
+export async function loadKeyboardDefinition(filename: string, baseURL?: string): Promise<KeyboardDefinition> {
+  // baseURLが指定されていない場合は自動検出を試みる
+  if (!baseURL) {
+    baseURL = '/';
+    if (typeof document !== 'undefined') {
+      const baseElement = document.querySelector('base');
+      if (baseElement?.href) {
+        try {
+          const url = new URL(baseElement.href);
+          baseURL = url.pathname;
+        } catch (e) {
+          console.warn('Failed to parse base URL:', e);
+        }
       }
     }
   }
@@ -53,6 +56,8 @@ export async function loadKeyboardDefinition(filename: string): Promise<Keyboard
   
   // 絶対パスとして構築
   const path = `${normalizedBaseURL}keyboards/${filename}`;
+  
+  console.log('[keyboardLoader] Loading from:', path); // デバッグ用
   
   const response = await fetch(path);
   if (!response.ok) {
@@ -65,10 +70,12 @@ export async function loadKeyboardDefinition(filename: string): Promise<Keyboard
  * Find keyboard definition by product name
  * Tries multiple filename patterns to find the keyboard definition
  * @param productName - The product name to search for
+ * @param baseURL - Optional base URL (e.g., '/MyKeyboradTyping/')
  * @returns Keyboard definition or undefined if not found
  */
 export async function findKeyboardByProductName(
-  productName: string
+  productName: string,
+  baseURL?: string
 ): Promise<KeyboardDefinition | undefined> {
   // 試行するファイル名パターンのリスト
   const patterns = [
@@ -86,7 +93,7 @@ export async function findKeyboardByProductName(
     if (!pattern) continue;
     
     try {
-      const definition = await loadKeyboardDefinition(`${pattern}.json`);
+      const definition = await loadKeyboardDefinition(`${pattern}.json`, baseURL);
       
       // productNamesが一致するか確認
       if (definition.productNames && definition.productNames.some((name) =>

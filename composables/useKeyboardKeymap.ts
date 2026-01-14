@@ -275,8 +275,14 @@ export function useKeyboardKeymap() {
    */
   async function getMatrixSize(keyboard: KeyboardDevice): Promise<{ rows: number; cols: number }> {
     try {
+      // 環境に応じてbaseURLを取得
+      // 開発環境: '/', 本番環境: '/MyKeyboradTyping/'
+      const baseURL = typeof window !== 'undefined' && window.location.pathname.startsWith('/MyKeyboradTyping/') 
+        ? '/MyKeyboradTyping/'
+        : '/';
+      
       // Product nameでキーボード定義を検索
-      const keyboardDef = await findKeyboardByProductName(keyboard.productName);
+      const keyboardDef = await findKeyboardByProductName(keyboard.productName, baseURL);
       
       if (!keyboardDef) {
         logger.warn(`キーボード定義が見つかりません: ${keyboard.productName}, デフォルト値を使用`);

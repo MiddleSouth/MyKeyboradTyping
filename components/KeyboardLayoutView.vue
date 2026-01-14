@@ -29,7 +29,13 @@ async function loadKeyboardDefinition() {
   
   try {
     isLoadingLayout.value = true
-    const keyboardDef = await findKeyboardByProductName(props.keymapData.productName)
+    
+    // 環境に応じてbaseURLを取得
+    const baseURL = typeof window !== 'undefined' && window.location.pathname.startsWith('/MyKeyboradTyping/')
+      ? '/MyKeyboradTyping/'
+      : '/'
+    
+    const keyboardDef = await findKeyboardByProductName(props.keymapData.productName, baseURL)
     
     if (!keyboardDef) {
       console.warn(`キーボード定義が見つかりません: ${props.keymapData.productName}`)

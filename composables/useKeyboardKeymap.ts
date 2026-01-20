@@ -300,7 +300,7 @@ export function useKeyboardKeymap() {
       }
       
       // matrixフィールドがない場合はレイアウトから自動計算（後方互換性）
-      const keyboardModel = new KeyboardModel(keyboardDef.layout);
+      const keyboardModel = new KeyboardModel(keyboardDef.layouts.keymap);
       const matrixSize = keyboardModel.getMatrixSize();
       
       logger.debug('マトリクスサイズ（レイアウトから自動計算）:', {

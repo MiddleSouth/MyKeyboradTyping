@@ -43,7 +43,7 @@ async function loadKeyboardDefinition() {
       return
     }
     
-    const keyboardModel = new KeyboardModel(keyboardDef.layout)
+    const keyboardModel = new KeyboardModel(keyboardDef.layouts.keymap)
     layoutData.value = keyboardModel.getKeymap()
     isLoadingLayout.value = false
   } catch (error) {

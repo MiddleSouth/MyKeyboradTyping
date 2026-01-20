@@ -13,7 +13,10 @@ export interface KeyboardDefinition {
     rows: number;
     cols: number;
   };
-  layout: any[]; // KLE layout array
+  layouts: {
+    labels?: string[][];  // レイアウトオプションのラベル（オプション）
+    keymap: any[];        // KLE layout array (VIA/Remap標準)
+  };
 }
 
 /**

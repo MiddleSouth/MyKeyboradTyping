@@ -1,40 +1,23 @@
 import { ref, computed, readonly } from 'vue'
 import { createLogger } from './useLogger'
+import { useBaseTypingJudge } from './useBaseTypingJudge'
 import { hiraganaToRomaji, splitHiragana, ROMAJI_TO_HIRAGANA_MAP } from './useRomajiMapper'
 import { createJudgmentStrategies } from '../utils/typingJudgment'
 import type { JudgmentContext, JudgmentDecision } from '../types/judgment'
+import type { TypingStatus, InputResult, TypingStatistics } from '../types/typing'
 
 const logger = createLogger('JapaneseTypingJudge')
 
-/**
- * タイピングの状態
- */
-export type TypingStatus = 'waiting' | 'typing' | 'completed'
-
-/**
- * 入力結果
- */
-export interface InputResult {
-  isCorrect: boolean
-  expectedChar: string
-  inputChar: string
-  position: number
-}
-
-/**
- * タイピング統計
- */
-export interface TypingStatistics {
-  correctCount: number
-  incorrectCount: number
-  totalInputCount: number
-  accuracy: number
-}
+// 型定義をエクスポート（後方互換性のため）
+export type { TypingStatus, InputResult, TypingStatistics }
 
 /**
  * 日本語タイピング判定を行うComposable
  */
 export function useJapaneseTypingJudge(hiraganaText: string) {
+  // 基底機能を利用
+  const base = useBaseTypingJudge()
+  
   // ひらがなテキストを正しい単位で分割（表示用ラベルとして使用）
   const hiraganaChars = splitHiragana(hiraganaText)
   const romajiPatterns = ref<string[]>(hiraganaToRomaji(hiraganaText))
@@ -45,16 +28,12 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   
   const currentRomajiIndex = ref(0)
   const currentRomajiPosition = ref(0) // 現在のローマ字パターン内の位置
-  const status = ref<TypingStatus>('waiting')
-  const correctCount = ref(0)
-  const incorrectCount = ref(0)
-  const inputHistory = ref<InputResult[]>([])
   
   // 判定戦略を初期化
   const judgmentStrategies = createJudgmentStrategies()
 
   /**
-   * 現在のひらがな文字（表示用ラベル）
+   * 現在のひらがな文字
    */
   const currentHiragana = computed(() => {
     if (currentRomajiIndex.value >= hiraganaChars.length) {
@@ -79,7 +58,16 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   const expectedChar = computed(() => {
     const romaji = currentRomaji.value
     if (!romaji) return null
-    if (currentRomajiPosition.value >= romaji.length) return null
+    
+    // 特殊文字（Enter、長音符、句読点、スペース、ハイフン）はそのまま返す
+    const hiragana = currentHiragana.value
+    if (hiragana && (hiragana === '\n' || hiragana === 'ー' || hiragana === '-' || hiragana === '、' || hiragana === '。' || hiragana === ' ')) {
+      return romaji
+    }
+    
+    if (currentRomajiPosition.value >= romaji.length) {
+      return null
+    }
     return romaji[currentRomajiPosition.value]
   })
 
@@ -107,26 +95,7 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   })
 
   /**
-   * 統計情報
-   */
-  const statistics = computed<TypingStatistics>(() => {
-    const totalInputCount = correctCount.value + incorrectCount.value
-    const accuracy = totalInputCount > 0 
-      ? Math.round((correctCount.value / totalInputCount) * 100) 
-      : 100
-    
-    return {
-      correctCount: correctCount.value,
-      incorrectCount: incorrectCount.value,
-      totalInputCount,
-      accuracy
-    }
-  })
-
-
-
-  /**
-   * 現在のパターンを完了し次に進む
+   * 次のローマ字パターンに進む
    */
   function advanceToNextPattern(): void {
     currentRomajiIndex.value++
@@ -134,7 +103,7 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   }
 
   /**
-   * 入力結果オブジェクトを作成
+   * InputResultを作成
    */
   function createResult(isCorrect: boolean, expectedChar: string, inputChar: string): InputResult {
     return {
@@ -151,9 +120,9 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   function applyJudgmentDecision(decision: JudgmentDecision, expected: string, inputChar: string): InputResult {
     // 正誤カウントの更新
     if (decision.isCorrect) {
-      correctCount.value++
+      base.incrementCorrect()
     } else {
-      incorrectCount.value++
+      base.incrementIncorrect()
     }
 
     // パターンの更新
@@ -170,12 +139,12 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
 
     // 結果の作成と履歴への追加
     const result = createResult(decision.isCorrect, expected, inputChar)
-    inputHistory.value.push(result)
+    base.addToHistory(result)
 
     // 完了判定
     if (isCompleted.value) {
-      status.value = 'completed'
-      logger.debug('タイピング完了', statistics.value)
+      base.completeTyping()
+      logger.debug('タイピング完了', base.statistics.value)
     }
 
     return result
@@ -209,8 +178,8 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
    */
   function judge(inputChar: string): InputResult {
     // 初回入力時にステータスを変更
-    if (status.value === 'waiting') {
-      status.value = 'typing'
+    base.startTyping()
+    if (base.status.value === 'typing' && currentRomajiIndex.value === 0 && currentRomajiPosition.value === 0) {
       logger.debug('タイピング開始')
     }
 
@@ -241,10 +210,7 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   function reset(): void {
     currentRomajiIndex.value = 0
     currentRomajiPosition.value = 0
-    status.value = 'waiting'
-    correctCount.value = 0
-    incorrectCount.value = 0
-    inputHistory.value = []
+    base.resetBase()
     // ローマ字パターンを初期状態に戻す
     romajiPatterns.value = hiraganaToRomaji(hiraganaText)
     logger.debug('リセットしました')
@@ -257,12 +223,12 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
     currentRomajiPosition: readonly(currentRomajiPosition),
     currentHiragana,
     currentRomaji,
-    status: readonly(status),
+    status: readonly(base.status),
     expectedChar,
     isCompleted,
     progress,
-    statistics,
-    inputHistory: readonly(inputHistory),
+    statistics: base.statistics,
+    inputHistory: readonly(base.inputHistory),
     judge,
     reset,
   }

@@ -80,16 +80,14 @@ export function usePracticeMaterial() {
    * 次の単語に進む
    */
   function nextWord(): boolean {
-    console.log('[nextWord] 呼び出し - currentWordIndex:', currentWordIndex.value, 'totalWords:', totalWords.value)
+    logger.debug('nextWord呼び出し', { currentWordIndex: currentWordIndex.value, totalWords: totalWords.value })
     if (currentWordIndex.value < totalWords.value - 1) {
       currentWordIndex.value++
-      console.log('[nextWord] 次の単語に進みました:', currentWordIndex.value, '/', totalWords.value)
       logger.debug(`次の単語に進みました: ${currentWord.value} (${currentWordIndex.value + 1}/${totalWords.value})`)
       return true
     }
     currentWordIndex.value++
-    console.log('[nextWord] 最後の単語完了 - currentWordIndex:', currentWordIndex.value, 'isAllWordsCompleted:', currentWordIndex.value >= totalWords.value)
-    logger.debug('これが最後の単語です')
+    logger.debug('これが最後の単語です', { currentWordIndex: currentWordIndex.value, isAllWordsCompleted: currentWordIndex.value >= totalWords.value })
     return false
   }
 

@@ -121,6 +121,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { createLogger } from '../composables/useLogger'
 import { useKeyboardDetector } from '../composables/useKeyboardDetector'
 import { useKeyboardKeymap } from '../composables/useKeyboardKeymap'
 import { useKeyboardState } from '../composables/useKeyboardState'
@@ -138,6 +139,8 @@ import DebugPanel from './DebugPanel.vue'
 import PracticeTextDisplay from './PracticeTextDisplay.vue'
 import CompletionPanel from './CompletionPanel.vue'
 import LayerSelector from './LayerSelector.vue'
+
+const logger = createLogger('KeyboardSelectView')
 
 // Composables
 const { isLoading: isDetecting, requestKeyboardSelection } = useKeyboardDetector()
@@ -193,7 +196,7 @@ function handleTypingInput(inputChar: string, event?: KeyboardEvent) {
   // 最後の文字が完了してEnterキーだった場合、タイムスタンプを記録
   if (result.isCorrect && inputChar === '\n' && event && typingJudge.value.isCompleted.value) {
     completionEnterTimestamp.value = event.timeStamp
-    console.log('[handleTypingInput] 完了時のEnterキータイムスタンプを記録:', event.timeStamp)
+    logger.debug('完了時のEnterキータイムスタンプを記録', { timeStamp: event.timeStamp })
   }
 }
 
@@ -225,7 +228,7 @@ const typingPosition = computed(() => {
 const typingCompleted = computed(() => typingJudge.value?.isCompleted.value ?? false)
 const isTypingFullyCompleted = computed(() => {
   const result = isAllWordsCompleted.value
-  console.log('[isTypingFullyCompleted] computed:', result, 'currentWordIndex:', currentWordIndex.value, 'totalWords:', totalWords.value)
+  logger.debug('isTypingFullyCompleted computed', { result, currentWordIndex: currentWordIndex.value, totalWords: totalWords.value })
   return result
 })
 const typingStatistics = computed(() => {
@@ -234,23 +237,22 @@ const typingStatistics = computed(() => {
 
 // タイピング完了時に自動で次の単語に進む
 watch(() => typingCompleted.value, (completed) => {
-  console.log('[watch] typingCompleted:', completed, 'isAllWordsCompleted:', isAllWordsCompleted.value)
+  logger.debug('typingCompleted watch', { completed, isAllWordsCompleted: isAllWordsCompleted.value })
   if (completed) {
     // 現在の単語の統計を累積
     if (typingJudge.value) {
       const stats = typingJudge.value.statistics.value
       totalCorrectCount.value += stats.correctCount
       totalIncorrectCount.value += stats.incorrectCount
-      console.log('[watch] 統計累積:', {
-        correct: stats.correctCount,
-        incorrect: stats.incorrectCount,
+      logger.debug('統計累積', {
+        current: { correct: stats.correctCount, incorrect: stats.incorrectCount },
         total: { correct: totalCorrectCount.value, incorrect: totalIncorrectCount.value }
       })
     }
     
     // 次の単語に進む（タイムラグなし）
     const hasNext = nextWord()
-    console.log('[watch] nextWord() returned:', hasNext, 'isAllWordsCompleted after nextWord:', isAllWordsCompleted.value)
+    logger.debug('nextWord実行', { hasNext, isAllWordsCompleted: isAllWordsCompleted.value })
     if (hasNext && typingJudge.value) {
       // まだ次の単語がある場合はリセット
       typingJudge.value.reset()
@@ -275,7 +277,7 @@ function handleCompletionShortcut(event: KeyboardEvent) {
   // 完了時に使用されたEnterキーと同じイベントを無視（タイムスタンプで判定）
   if (event.key === 'Enter' && completionEnterTimestamp.value !== null) {
     if (Math.abs(event.timeStamp - completionEnterTimestamp.value) < 50) {
-      console.log('[handleCompletionShortcut] 完了時のEnterキーと同じイベントなので無視')
+      logger.debug('完了時のEnterキーと同じイベントなので無視', { timeStamp: event.timeStamp })
       completionEnterTimestamp.value = null // クリア
       return
     }
@@ -308,7 +310,7 @@ async function handleSelectAndFetch() {
   clearError()
   const device = await requestKeyboardSelection()
   if (device) {
-    console.log('[Debug] Selected keyboard:', device)
+    logger.debug('キーボード選択', { productName: device.productName, vendorId: device.vendorId, productId: device.productId })
     await handleContinue()
   }
 }

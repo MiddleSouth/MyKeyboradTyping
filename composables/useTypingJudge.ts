@@ -5,9 +5,6 @@ import type { TypingStatus, InputResult, TypingStatistics } from '../types/typin
 
 const logger = createLogger('TypingJudge')
 
-// 型定義をエクスポート（後方互換性のため）
-export type { TypingStatus, InputResult, TypingStatistics }
-
 /**
  * タイピング判定を行うComposable
  */

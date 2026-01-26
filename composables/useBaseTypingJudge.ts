@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { calculateTypingStatistics } from '../utils/statisticsCalculator'
 import type { TypingStatus, InputResult, TypingStatistics } from '../types/typing'
 
 /**
@@ -16,17 +17,7 @@ export function useBaseTypingJudge() {
    * 統計情報
    */
   const statistics = computed<TypingStatistics>(() => {
-    const totalInputCount = correctCount.value + incorrectCount.value
-    const accuracy = totalInputCount > 0 
-      ? Math.round((correctCount.value / totalInputCount) * 100) 
-      : 100
-    
-    return {
-      correctCount: correctCount.value,
-      incorrectCount: incorrectCount.value,
-      totalInputCount,
-      accuracy
-    }
+    return calculateTypingStatistics(correctCount.value, incorrectCount.value)
   })
 
   /**

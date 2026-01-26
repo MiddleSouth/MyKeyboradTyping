@@ -5,10 +5,6 @@ import type { PracticeMaterial } from '../constants/practiceMaterials'
 
 const logger = createLogger('PracticeMaterial')
 
-// 型定義を再エクスポート（後方互換性のため）
-export type { PracticeMaterial }
-export { BUILT_IN_MATERIALS }
-
 /**
  * 練習素材を管理するComposable
  */
@@ -35,7 +31,7 @@ export function usePracticeMaterial() {
   })
 
   /**
-   * 現在の練習テキスト（後方互換性のため）
+   * 現在の練習テキスト
    */
   const currentText = computed(() => {
     return currentWord.value

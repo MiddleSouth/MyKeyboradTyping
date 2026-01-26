@@ -251,7 +251,7 @@ describe('usePracticeMaterial', () => {
     })
   })
 
-  describe('後方互換性', () => {
+  describe('currentTextの動作', () => {
     it('currentTextはcurrentWordと同じ値を返す', () => {
       const pm = usePracticeMaterial()
       expect(pm.currentText.value).toBe(pm.currentWord.value)

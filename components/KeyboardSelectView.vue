@@ -132,6 +132,7 @@ import { usePracticeMaterial } from '../composables/usePracticeMaterial'
 import { useTypingJudge } from '../composables/useTypingJudge'
 import { useJapaneseTypingJudge } from '../composables/useJapaneseTypingJudge'
 import { useKeyboardEventHandler } from '../composables/useKeyboardEventHandler'
+import { calculateTypingStatistics } from '../utils/statisticsCalculator'
 import KeyboardLayoutView from './KeyboardLayoutView.vue'
 import DebugPanel from './DebugPanel.vue'
 import PracticeTextDisplay from './PracticeTextDisplay.vue'
@@ -228,17 +229,7 @@ const isTypingFullyCompleted = computed(() => {
   return result
 })
 const typingStatistics = computed(() => {
-  const totalInputCount = totalCorrectCount.value + totalIncorrectCount.value
-  const accuracy = totalInputCount > 0 
-    ? Math.round((totalCorrectCount.value / totalInputCount) * 100) 
-    : 100
-  
-  return {
-    correctCount: totalCorrectCount.value,
-    incorrectCount: totalIncorrectCount.value,
-    totalInputCount,
-    accuracy
-  }
+  return calculateTypingStatistics(totalCorrectCount.value, totalIncorrectCount.value)
 })
 
 // タイピング完了時に自動で次の単語に進む

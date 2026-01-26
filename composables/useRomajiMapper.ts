@@ -4,8 +4,6 @@ import type { RomajiPattern } from '../constants/romajiMap'
 
 const logger = createLogger('RomajiMapper')
 
-// 型定義を再エクスポート（後方互換性のため）
-export type { RomajiPattern }
 export { ROMAJI_TO_HIRAGANA_MAP }
 
 /**

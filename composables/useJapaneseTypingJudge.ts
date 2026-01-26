@@ -8,9 +8,6 @@ import type { TypingStatus, InputResult, TypingStatistics } from '../types/typin
 
 const logger = createLogger('JapaneseTypingJudge')
 
-// 型定義をエクスポート（後方互換性のため）
-export type { TypingStatus, InputResult, TypingStatistics }
-
 /**
  * 日本語タイピング判定を行うComposable
  */

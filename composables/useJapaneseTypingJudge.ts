@@ -5,13 +5,14 @@ import { hiraganaToRomaji, splitHiragana, ROMAJI_TO_HIRAGANA_MAP } from './useRo
 import { createJudgmentStrategies } from '../utils/typingJudgment'
 import type { JudgmentContext, JudgmentDecision } from '../types/judgment'
 import type { TypingStatus, InputResult, TypingStatistics } from '../types/typing'
+import type { JapaneseTypingJudge } from '../types/typingJudge'
 
 const logger = createLogger('JapaneseTypingJudge')
 
 /**
  * 日本語タイピング判定を行うComposable
  */
-export function useJapaneseTypingJudge(hiraganaText: string) {
+export function useJapaneseTypingJudge(hiraganaText: string): JapaneseTypingJudge {
   // 基底機能を利用
   const base = useBaseTypingJudge()
   
@@ -221,6 +222,7 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
   }
 
   return {
+    kind: 'japanese' as const,
     hiraganaChars: readonly(ref(hiraganaChars)),
     romajiPatterns: readonly(romajiPatterns),
     currentRomajiIndex: readonly(currentRomajiIndex),

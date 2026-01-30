@@ -2,13 +2,14 @@ import { ref, computed, readonly } from 'vue'
 import { createLogger } from './useLogger'
 import { useBaseTypingJudge } from './useBaseTypingJudge'
 import type { TypingStatus, InputResult, TypingStatistics } from '../types/typing'
+import type { EnglishTypingJudge } from '../types/typingJudge'
 
 const logger = createLogger('TypingJudge')
 
 /**
  * タイピング判定を行うComposable
  */
-export function useTypingJudge(targetText: string) {
+export function useTypingJudge(targetText: string): EnglishTypingJudge {
   // 基底機能を利用
   const base = useBaseTypingJudge()
   
@@ -120,6 +121,7 @@ export function useTypingJudge(targetText: string) {
   }
 
   return {
+    kind: 'english' as const,
     currentPosition: readonly(currentPosition),
     status: readonly(base.status),
     expectedChar,

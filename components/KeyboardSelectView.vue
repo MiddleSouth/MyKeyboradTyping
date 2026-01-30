@@ -121,7 +121,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
-import type { ITypingJudge } from '../types/typingJudge'
+import type { TypingJudge } from '../types/typingJudge'
 import { createLogger } from '../composables/useLogger'
 import { useKeyboardDetector } from '../composables/useKeyboardDetector'
 import { useKeyboardKeymap } from '../composables/useKeyboardKeymap'
@@ -167,7 +167,7 @@ const {
 } = usePracticeMaterial()
 
 // タイピング判定はリアクティブに再生成（日本語/英語で切り替え）
-const typingJudge = computed(() => {
+const typingJudge = computed<TypingJudge | null>(() => {
   if (!currentWord.value) return null
   if (currentMaterial.value?.isJapanese) {
     return useJapaneseTypingJudge(currentWord.value)
@@ -226,15 +226,27 @@ const typingPosition = computed(() => {
 const typingCompleted = computed(() => typingJudge.value?.isCompleted.value ?? false)
 const romajiPatterns = computed(() => {
   const judge = typingJudge.value
-  return judge && 'romajiPatterns' in judge ? judge.romajiPatterns.value : []
+  if (!judge) return []
+  if (judge.kind === 'japanese') {
+    return judge.romajiPatterns.value
+  }
+  return []
 })
 const currentRomajiIndex = computed(() => {
   const judge = typingJudge.value
-  return judge && 'currentRomajiIndex' in judge ? judge.currentRomajiIndex.value : 0
+  if (!judge) return 0
+  if (judge.kind === 'japanese') {
+    return judge.currentRomajiIndex.value
+  }
+  return 0
 })
 const currentRomajiPosition = computed(() => {
   const judge = typingJudge.value
-  return judge && 'currentRomajiPosition' in judge ? judge.currentRomajiPosition.value : 0
+  if (!judge) return 0
+  if (judge.kind === 'japanese') {
+    return judge.currentRomajiPosition.value
+  }
+  return 0
 })
 const isTypingFullyCompleted = computed(() => {
   const result = isAllWordsCompleted.value

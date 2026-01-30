@@ -66,7 +66,7 @@ interface Props {
   overallCurrent?: number
   overallTotal?: number
   isJapanese?: boolean
-  romajiPatterns?: string[]
+  romajiPatterns?: readonly string[]
   currentRomajiIndex?: number
   currentRomajiPosition?: number
 }

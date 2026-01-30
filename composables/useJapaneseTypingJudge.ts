@@ -213,6 +213,13 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
     logger.debug('リセットしました')
   }
 
+  /**
+   * 現在の位置を取得（共通インターフェース）
+   */
+  function getCurrentPosition(): number {
+    return currentRomajiPosition.value
+  }
+
   return {
     hiraganaChars: readonly(ref(hiraganaChars)),
     romajiPatterns: readonly(romajiPatterns),
@@ -228,5 +235,6 @@ export function useJapaneseTypingJudge(hiraganaText: string) {
     inputHistory: readonly(base.inputHistory),
     judge,
     reset,
+    getCurrentPosition,
   }
 }

@@ -112,6 +112,13 @@ export function useTypingJudge(targetText: string) {
     }
   }
 
+  /**
+   * 現在の位置を取得（共通インターフェース）
+   */
+  function getCurrentPosition(): number {
+    return currentPosition.value
+  }
+
   return {
     currentPosition: readonly(currentPosition),
     status: readonly(base.status),
@@ -123,5 +130,6 @@ export function useTypingJudge(targetText: string) {
     judge,
     reset,
     skipTo,
+    getCurrentPosition,
   }
 }

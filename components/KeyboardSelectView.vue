@@ -69,9 +69,9 @@
             :overall-current="overallProgress.current + typingPosition"
             :overall-total="overallProgress.total"
             :is-japanese="currentMaterial?.isJapanese || false"
-            :romaji-patterns="currentMaterial?.isJapanese ? ((typingJudge as any)?.romajiPatterns?.value || []) : []"
-            :current-romaji-index="currentMaterial?.isJapanese ? ((typingJudge as any)?.currentRomajiIndex?.value || 0) : 0"
-            :current-romaji-position="currentMaterial?.isJapanese ? ((typingJudge as any)?.currentRomajiPosition?.value || 0) : 0"
+            :romaji-patterns="romajiPatterns"
+            :current-romaji-index="currentRomajiIndex"
+            :current-romaji-position="currentRomajiPosition"
           />
           
           <!-- 完了時：結果表示 -->
@@ -121,6 +121,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import type { ITypingJudge } from '../types/typingJudge'
 import { createLogger } from '../composables/useLogger'
 import { useKeyboardDetector } from '../composables/useKeyboardDetector'
 import { useKeyboardKeymap } from '../composables/useKeyboardKeymap'
@@ -220,12 +221,21 @@ const canGoNextMaterial = computed(() => {
 })
 const typingStatus = computed(() => typingJudge.value?.status.value ?? 'waiting')
 const typingPosition = computed(() => {
-  if (currentMaterial.value?.isJapanese) {
-    return (typingJudge.value as any)?.currentRomajiPosition?.value ?? 0
-  }
-  return (typingJudge.value as any)?.currentPosition?.value ?? 0
+  return typingJudge.value?.getCurrentPosition() ?? 0
 })
 const typingCompleted = computed(() => typingJudge.value?.isCompleted.value ?? false)
+const romajiPatterns = computed(() => {
+  const judge = typingJudge.value
+  return judge && 'romajiPatterns' in judge ? judge.romajiPatterns.value : []
+})
+const currentRomajiIndex = computed(() => {
+  const judge = typingJudge.value
+  return judge && 'currentRomajiIndex' in judge ? judge.currentRomajiIndex.value : 0
+})
+const currentRomajiPosition = computed(() => {
+  const judge = typingJudge.value
+  return judge && 'currentRomajiPosition' in judge ? judge.currentRomajiPosition.value : 0
+})
 const isTypingFullyCompleted = computed(() => {
   const result = isAllWordsCompleted.value
   logger.debug('isTypingFullyCompleted computed', { result, currentWordIndex: currentWordIndex.value, totalWords: totalWords.value })

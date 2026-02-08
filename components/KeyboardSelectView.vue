@@ -1,12 +1,23 @@
 <template>
   <div class="keyboard-select-container">
     <div class="content-wrapper">
+      <!-- イントロダクション -->
+      <IntroductionSection 
+        :is-connected="!!rawHIDData || !!selectedKeyboard" 
+        :is-detecting="isDetecting"
+        :is-loading="isLoading"
+        :on-select-keyboard="rawHIDData || selectedKeyboard ? undefined : handleSelectAndFetch"
+      />
+      
+      <!-- 対応キーボード一覧 -->
+      <SupportedKeyboardList :is-connected="!!rawHIDData || !!selectedKeyboard" />
+      
       <!-- ヘッダー -->
-      <div class="flex items-center justify-between mb-8">
+      <div v-if="rawHIDData || selectedKeyboard" class="flex items-center justify-between mb-8">
         <h1 class="text-3xl font-bold">MyKeyboardTyping</h1>
         
         <!-- 右上のドロップダウン -->
-        <div v-if="rawHIDData" class="flex items-center gap-3">
+        <div class="flex items-center gap-3">
           <!-- 練習素材選択 -->
           <select
             v-model="selectedMaterialId"
@@ -24,31 +35,6 @@
         </div>
       </div>
 
-      <!-- メインボタン -->
-      <div v-if="!rawHIDData" class="mb-6">
-        <button
-          @click="handleSelectAndFetch"
-          :disabled="isDetecting || isLoading"
-          class="w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-bold text-lg transition shadow-lg"
-        >
-          {{ isDetecting || isLoading ? '処理中...' : '🎹 キーボードを選択' }}
-        </button>
-        
-        <!-- 対応キーボード一覧 -->
-        <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h2 class="text-sm font-bold text-blue-900 mb-2">対応キーボード</h2>
-          <ul class="text-sm text-blue-800 space-y-1">
-            <li class="flex items-center">
-              <span class="mr-2">✓</span>
-              <span>Ergo68</span>
-            </li>
-          </ul>
-          <p class="mt-3 text-xs text-blue-700">
-            ※ 上記以外のキーボードは現在未対応です。今後のアップデートで対応予定です。
-          </p>
-        </div>
-      </div>
-
       <!-- エラーメッセージ -->
       <div v-if="error" class="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
         <p class="font-bold">エラー:</p>
@@ -56,7 +42,7 @@
       </div>
 
       <!-- タイピング練習セクション -->
-      <div v-if="rawHIDData" class="mt-6">
+      <div v-if="rawHIDData || selectedKeyboard" class="mt-6">
         <!-- 練習テキスト表示 / 完了時の結果表示 -->
         <div class="mb-4">
           <!-- 練習中：テキスト表示 -->
@@ -84,8 +70,8 @@
           />
         </div>
 
-        <!-- キーボードレイアウト表示 -->
-        <div class="mb-4">
+        <!-- キーボードレイアウト表示（キーマップがある場合のみ） -->
+        <div v-if="rawHIDData" class="mb-4">
           <!-- レイヤー選択タブ -->
           <div class="mb-4">
             <LayerSelector
@@ -115,6 +101,9 @@
       <!-- 生データ表示 -->
       <DebugPanel :data="rawHIDData" :show-debug="false" />
 
+      <!-- お問い合わせガイド -->
+      <ContributionGuide />
+
     </div>
   </div>
 </template>
@@ -140,6 +129,9 @@ import DebugPanel from './DebugPanel.vue'
 import PracticeTextDisplay from './PracticeTextDisplay.vue'
 import CompletionPanel from './CompletionPanel.vue'
 import LayerSelector from './LayerSelector.vue'
+import IntroductionSection from './IntroductionSection.vue'
+import SupportedKeyboardList from './SupportedKeyboardList.vue'
+import ContributionGuide from './ContributionGuide.vue'
 
 const logger = createLogger('KeyboardSelectView')
 

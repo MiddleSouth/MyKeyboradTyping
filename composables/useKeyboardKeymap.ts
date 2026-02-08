@@ -187,7 +187,7 @@ export function useKeyboardKeymap() {
         logger.debug('通常のキーボードコレクションを使用（VIAコマンドは送信可能）:', targetCollection);
       } else {
         logger.error('使用可能なコレクションが見つかりません');
-        throw new Error('キーボードコレクションが見つかりません。');
+        throw new Error('このキーボードはVIA/Remapに対応していません。キーボードレイアウトは表示されませんが、タイピング練習は可能です。');
       }
     }
 
@@ -242,7 +242,7 @@ export function useKeyboardKeymap() {
     
     // Remapと同じく、MIN_VIA_PROTOCOL_VERSION未満は非対応
     if (viaProtocolVersion < MIN_VIA_PROTOCOL_VERSION) {
-      throw new Error(`VIAプロトコルバージョン ${viaProtocolVersion} は対応していません。0x0C以上が必要です。`);
+      throw new Error(`VIAプロトコルバージョン ${viaProtocolVersion} は対応していません（0x0C以上が必要）。キーボードレイアウトは表示されませんが、タイピング練習は可能です。`);
     }
 
     return viaProtocolVersion;

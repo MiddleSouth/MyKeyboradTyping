@@ -1,23 +1,14 @@
 /**
- * Get the base URL from the <base> tag in the document
+ * Get the base URL for the application
  * This is used to handle different base paths in development (/) and production (/MyKeyboradTyping/)
  * @returns The base URL with trailing slash
  */
 export function getBaseURL(): string {
-  let baseURL = '/'
-  
-  if (typeof document !== 'undefined') {
-    const baseElement = document.querySelector('base')
-    if (baseElement?.href) {
-      try {
-        const url = new URL(baseElement.href)
-        baseURL = url.pathname
-      } catch (e) {
-        console.warn('Failed to parse base URL:', e)
-      }
-    }
+  // window.location.pathnameを使用して本番環境かどうかを判定
+  // （KeyboardLayoutView.vueと同じロジック）
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/MyKeyboradTyping/')) {
+    return '/MyKeyboradTyping/'
   }
   
-  // baseURLの末尾にスラッシュを確保
-  return baseURL.endsWith('/') ? baseURL : baseURL + '/'
+  return '/'
 }

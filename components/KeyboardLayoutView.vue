@@ -5,6 +5,7 @@ import { convertKeycodeToLabel } from '../utils/keycodeConverter'
 import KeyboardModel from '../utils/KeyboardModel'
 import type KeyModel from '../utils/KeyModel'
 import { findKeyboardByProductName } from '../utils/keyboardLoader'
+import { getBaseURL } from '../utils/baseUrl'
 
 interface Props {
   keymapData: RawKeymapData | null
@@ -30,10 +31,8 @@ async function loadKeyboardDefinition() {
   try {
     isLoadingLayout.value = true
     
-    // 環境に応じてbaseURLを取得
-    const baseURL = typeof window !== 'undefined' && window.location.pathname.startsWith('/MyKeyboradTyping/')
-      ? '/MyKeyboradTyping/'
-      : '/'
+    // ベースURLを取得
+    const baseURL = getBaseURL()
     
     const keyboardDef = await findKeyboardByProductName(props.keymapData.productName, baseURL)
     

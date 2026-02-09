@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { getBaseURL } from '../utils/baseUrl'
 
 defineProps<{
   isConnected: boolean
@@ -16,6 +17,9 @@ const error = ref<string | null>(null)
 
 onMounted(async () => {
   try {
+    // ベースURLを取得
+    const baseURL = getBaseURL()
+    
     // public/keyboards/ 配下のjsonファイル一覧を取得
     const keyboardFiles = [
       'corne.json',
@@ -31,7 +35,7 @@ onMounted(async () => {
     const keyboardData = await Promise.all(
       keyboardFiles.map(async (fileName) => {
         try {
-          const response = await fetch(`/keyboards/${fileName}`)
+          const response = await fetch(`${baseURL}keyboards/${fileName}`)
           if (!response.ok) throw new Error(`Failed to load ${fileName}`)
           const data = await response.json()
           return {

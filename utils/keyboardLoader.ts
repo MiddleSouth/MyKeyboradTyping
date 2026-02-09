@@ -1,4 +1,5 @@
 import { createLogger } from '../composables/useLogger'
+import { getBaseURL } from './baseUrl'
 
 const logger = createLogger('KeyboardLoader')
 
@@ -43,23 +44,7 @@ function normalizeToFilename(productName: string): string {
  */
 export async function loadKeyboardDefinition(filename: string, baseURL?: string): Promise<KeyboardDefinition> {
   // baseURLが指定されていない場合は自動検出を試みる
-  if (!baseURL) {
-    baseURL = '/';
-    if (typeof document !== 'undefined') {
-      const baseElement = document.querySelector('base');
-      if (baseElement?.href) {
-        try {
-          const url = new URL(baseElement.href);
-          baseURL = url.pathname;
-        } catch (e) {
-          console.warn('Failed to parse base URL:', e);
-        }
-      }
-    }
-  }
-  
-  // baseURLの末尾にスラッシュを確保
-  const normalizedBaseURL = baseURL.endsWith('/') ? baseURL : baseURL + '/';
+  const normalizedBaseURL = baseURL ? (baseURL.endsWith('/') ? baseURL : baseURL + '/') : getBaseURL();
   
   // 絶対パスとして構築
   const path = `${normalizedBaseURL}keyboards/${filename}`;

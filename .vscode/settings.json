@@ -8,5 +8,8 @@
     "typescript",
     "typescriptreact",
     "vue"
-  ]
+  ],
+  "chat.tools.terminal.autoApprove": {
+    "npm install": true
+  }
 }

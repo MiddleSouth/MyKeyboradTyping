@@ -1,3 +1,7 @@
+import { createLogger } from '../composables/useLogger'
+
+const logger = createLogger('KeyboardLoader')
+
 /**
  * Keyboard definition (KLE format with metadata)
  */
@@ -60,7 +64,7 @@ export async function loadKeyboardDefinition(filename: string, baseURL?: string)
   // 絶対パスとして構築
   const path = `${normalizedBaseURL}keyboards/${filename}`;
   
-  console.log('[keyboardLoader] Loading from:', path); // デバッグ用
+  logger.debug('キーボード定義ファイル読み込み', { path, filename })
   
   const response = await fetch(path);
   if (!response.ok) {

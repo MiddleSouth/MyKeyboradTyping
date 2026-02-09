@@ -25,17 +25,20 @@ export function useKeyboardEventHandler(
 ) {
   function onKeyDown(event: KeyboardEvent) {
     const keyEvent = convertKeyDown(event)
-    if (!keyEvent || !rawHIDData.value) return
+    if (!keyEvent) return
     
     event.preventDefault()
     
-    const matchedKeys = findKeysInAllLayers(keyEvent.qmkKeycode)
-    
-    matchedKeys.forEach((positions, layer) => {
-      pressKeys(layer, positions)
-    })
+    // キーマップがある場合のみハイライト処理
+    if (rawHIDData.value) {
+      const matchedKeys = findKeysInAllLayers(keyEvent.qmkKeycode)
+      
+      matchedKeys.forEach((positions, layer) => {
+        pressKeys(layer, positions)
+      })
+    }
 
-    // タイピング判定処理
+    // タイピング判定処理（常に実行）
     if (onTypingInput) {
       const inputChar = keyEvent.key
       
@@ -50,15 +53,18 @@ export function useKeyboardEventHandler(
 
   function onKeyUp(event: KeyboardEvent) {
     const keyEvent = convertKeyUp(event)
-    if (!keyEvent || !rawHIDData.value) return
+    if (!keyEvent) return
     
     event.preventDefault()
     
-    const matchedKeys = findKeysInAllLayers(keyEvent.qmkKeycode)
-    
-    matchedKeys.forEach((positions, layer) => {
-      releaseKeys(layer, positions)
-    })
+    // キーマップがある場合のみハイライト処理
+    if (rawHIDData.value) {
+      const matchedKeys = findKeysInAllLayers(keyEvent.qmkKeycode)
+      
+      matchedKeys.forEach((positions, layer) => {
+        releaseKeys(layer, positions)
+      })
+    }
   }
 
   // Lifecycle

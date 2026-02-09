@@ -187,7 +187,7 @@ export function useKeyboardKeymap() {
         logger.debug('通常のキーボードコレクションを使用（VIAコマンドは送信可能）:', targetCollection);
       } else {
         logger.error('使用可能なコレクションが見つかりません');
-        throw new Error('キーボードコレクションが見つかりません。');
+        throw new Error('このキーボードはVIA/Remapに対応していません。キーボードレイアウトは表示されませんが、タイピング練習は可能です。');
       }
     }
 
@@ -242,7 +242,7 @@ export function useKeyboardKeymap() {
     
     // Remapと同じく、MIN_VIA_PROTOCOL_VERSION未満は非対応
     if (viaProtocolVersion < MIN_VIA_PROTOCOL_VERSION) {
-      throw new Error(`VIAプロトコルバージョン ${viaProtocolVersion} は対応していません。0x0C以上が必要です。`);
+      throw new Error(`VIAプロトコルバージョン ${viaProtocolVersion} は対応していません（0x0C以上が必要）。キーボードレイアウトは表示されませんが、タイピング練習は可能です。`);
     }
 
     return viaProtocolVersion;
@@ -435,55 +435,79 @@ export function useKeyboardKeymap() {
   }
 
   /**
+   * 出力レポートでVIAコマンドを送信（方法1）
+   */
+  async function trySendReport(
+    device: HIDDevice, 
+    reportId: number, 
+    dataBuffer: BufferSource
+  ): Promise<{ success: boolean; error?: Error }> {
+    try {
+      await device.sendReport(reportId, dataBuffer);
+      logger.debug('出力レポート送信成功');
+      return { success: true };
+    } catch (err) {
+      logger.error('出力レポート送信エラー:', err);
+      return { success: false, error: err as Error };
+    }
+  }
+
+  /**
+   * フィーチャーレポートでVIAコマンドを送信（方法2・フォールバック）
+   */
+  async function trySendFeatureReport(
+    device: HIDDevice, 
+    reportId: number, 
+    dataBuffer: BufferSource
+  ): Promise<{ success: boolean }> {
+    try {
+      await device.sendFeatureReport(reportId, dataBuffer);
+      logger.debug('フィーチャーレポート送信成功（フォールバック）');
+      return { success: true };
+    } catch (err) {
+      logger.error('フィーチャーレポート送信エラー:', err);
+      throw new Error('すべての送信方法が失敗しました', { cause: err });
+    }
+  }
+
+  /**
    * VIA コマンドを送信
    * 
-   * Remapの実装パターンに合わせ、通常出力レポート（sendReport）を使用
+   * 通常出力レポート（sendReport）を試し、失敗した場合は
+   * フィーチャーレポート（sendFeatureReport）にフォールバックする。
+   * これはデバイスやブラウザの実装の違いに対応するため。
+   * 
    * WebHID仕様:
    * - sendReport(reportId: octet, data: BufferSource)
+   * - sendFeatureReport(reportId: octet, data: BufferSource)
    * 
    * 注意: レスポンス取得は inputreport イベントリスナーで行う
    */
   async function sendVIACommand(device: HIDDevice, command: number[], reportId: number = 0): Promise<{ success: boolean }> {
-    try {
-      // コマンドデータのみを含むバッファ
-      const dataBuffer = new Uint8Array(VIA_REPORT_SIZE);
+    // コマンドデータのみを含むバッファ
+    const dataBuffer = new Uint8Array(VIA_REPORT_SIZE);
 
-      // コマンドをバッファにコピー
-      for (let i = 0; i < command.length && i < VIA_REPORT_SIZE; i++) {
-        dataBuffer[i] = command[i];
-      }
-
-      logger.debug('VIA コマンド送信:', {
-        reportId: reportId,
-        bufferSize: dataBuffer.length,
-        command: Array.from(command),
-        fullBuffer: Array.from(dataBuffer.slice(0, Math.min(10, dataBuffer.length))),
-      });
-
-      // 通常出力レポートで送信（Remapと同じパターン）
-      try {
-        await device.sendReport(reportId, dataBuffer);
-        logger.debug('出力レポート送信成功');
-      } catch (err) {
-        logger.error('出力レポート送信エラー:', err);
-        // フィーチャーレポートの試行にフォールバック
-        logger.debug('フィーチャーレポートでリトライ...');
-        try {
-          await device.sendFeatureReport(reportId, dataBuffer);
-          logger.debug('フィーチャーレポート送信成功（フォールバック）');
-        } catch (fallbackErr) {
-          logger.error('フィーチャーレポート送信エラー（フォールバック失敗）:', fallbackErr);
-          throw err;
-        }
-      }
-
-      // 注: レスポンスは inputreport イベントリスナーで取得される
-      // このメソッド呼び出し側でレスポンス待機を処理する
-      return { success: true };
-    } catch (err) {
-      logger.error('VIA コマンド送信エラー:', err);
-      throw err;
+    // コマンドをバッファにコピー
+    for (let i = 0; i < command.length && i < VIA_REPORT_SIZE; i++) {
+      dataBuffer[i] = command[i];
     }
+
+    logger.debug('VIA コマンド送信:', {
+      reportId: reportId,
+      bufferSize: dataBuffer.length,
+      command: Array.from(command),
+      fullBuffer: Array.from(dataBuffer.slice(0, Math.min(10, dataBuffer.length))),
+    });
+
+    // 方法1: 通常出力レポートを試行
+    const result = await trySendReport(device, reportId, dataBuffer);
+    if (result.success) {
+      return { success: true };
+    }
+
+    // 方法2: フィーチャーレポートでリトライ（フォールバック）
+    logger.debug('フィーチャーレポートでリトライ...');
+    return await trySendFeatureReport(device, reportId, dataBuffer);
   }
 
   /**

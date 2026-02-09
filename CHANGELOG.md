@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-09
+
+### Added
+- 対応キーボード追加（計8種類に拡大）:
+  - Corne (crkbd)
+  - Cornelius v2
+  - ErgoArrows
+  - Helix rev3 5rows
+  - Keyball39
+  - Keyball44
+  - Lily58
+- 非対応キーボードでもタイピング練習が可能に（キー配列表示なし）
+- トップページにイントロダクション追加
+  - アプリの特徴説明
+  - 使い方ガイド
+- お問い合わせガイド追加
+
+### Changed
+- キーボード選択画面のUI改善
+- エラーメッセージの改善
+
 ## [1.1.1] - 2026-01-14
 
 ### Fixed

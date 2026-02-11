@@ -80,6 +80,18 @@ const BASIC_KEYCODES: Record<number, string> = {
   0x0043: 'F10',
   0x0044: 'F11',
   0x0045: 'F12',
+  0x0068: 'F13',
+  0x0069: 'F14',
+  0x006A: 'F15',
+  0x006B: 'F16',
+  0x006C: 'F17',
+  0x006D: 'F18',
+  0x006E: 'F19',
+  0x006F: 'F20',
+  0x0070: 'F21',
+  0x0071: 'F22',
+  0x0072: 'F23',
+  0x0073: 'F24',
   
   // システムキー
   0x0046: 'Print\nScreen',
@@ -116,6 +128,41 @@ const BASIC_KEYCODES: Record<number, string> = {
   0x0061: '9',
   0x0062: '0',
   0x0063: '.',
+  0x0067: '=',
+
+  // アプリケーション・システムキー
+  0x0065: 'App',
+  0x0066: 'Power',
+  0x0074: 'Exec',
+  0x0075: 'Help',
+  0x0076: 'Menu',
+  0x0077: 'Select',
+  0x0078: 'Stop',
+  0x0079: 'Again',
+  0x007A: 'Undo',
+  0x007B: 'Cut',
+  0x007C: 'Copy',
+  0x007D: 'Paste',
+  0x007E: 'Find',
+  0x007F: 'Mute',
+  0x0080: 'Vol\nUp',
+  0x0081: 'Vol\nDown',
+
+  // 国際化キー
+  0x0087: 'INT1',
+  0x0088: 'INT2',
+  0x0089: 'INT3',
+  0x008A: 'INT4',
+  0x008B: 'INT5',
+  0x008C: 'INT6',
+  0x008D: 'INT7',
+  0x008E: 'INT8',
+  0x008F: 'INT9',
+  0x0090: 'LANG1',
+  0x0091: 'LANG2',
+  0x0092: 'LANG3',
+  0x0093: 'LANG4',
+  0x0094: 'LANG5',
   
   // モディファイアキー
   0x00E0: '*Ctrl',
@@ -130,17 +177,148 @@ const BASIC_KEYCODES: Record<number, string> = {
   0x5222: 'Mo(2)',
   0x5223: 'Mo(3)',
 
-  // マクロキー
-  0x7700: 'Macro0',
-  0x7701: 'Macro1',
-  0x7702: 'Macro2',
-  0x7703: 'Macro3',
-  0x7704: 'Macro4',
-  0x7705: 'Macro5',
-  0x7706: 'Macro6',
-  0x7707: 'Macro7',
-  0x7708: 'Macro8',
-  0x7709: 'Macro9',
+  // マクロキー (0x7700-0x771F)
+  0x7700: 'MC0', 0x7701: 'MC1', 0x7702: 'MC2', 0x7703: 'MC3',
+  0x7704: 'MC4', 0x7705: 'MC5', 0x7706: 'MC6', 0x7707: 'MC7',
+  0x7708: 'MC8', 0x7709: 'MC9', 0x770A: 'MC10', 0x770B: 'MC11',
+  0x770C: 'MC12', 0x770D: 'MC13', 0x770E: 'MC14', 0x770F: 'MC15',
+  0x7710: 'MC16', 0x7711: 'MC17', 0x7712: 'MC18', 0x7713: 'MC19',
+  0x7714: 'MC20', 0x7715: 'MC21', 0x7716: 'MC22', 0x7717: 'MC23',
+  0x7718: 'MC24', 0x7719: 'MC25', 0x771A: 'MC26', 0x771B: 'MC27',
+  0x771C: 'MC28', 0x771D: 'MC29', 0x771E: 'MC30', 0x771F: 'MC31',
+
+  // バックライト制御 (0x7800-0x7807)
+  0x7800: 'BL\nOn',
+  0x7801: 'BL\nOff',
+  0x7802: 'BL\nTOG',
+  0x7803: 'BL\nDOWN',
+  0x7804: 'BL\nUP',
+  0x7805: 'BL\nSTEP',
+  0x7806: 'BL\nBRTH',
+
+  // RGB制御 (0x7820-0x7838)
+  0x7820: 'RGB\nTOG',
+  0x7821: 'RGB\nMOD',
+  0x7822: 'RGB\nRMOD',
+  0x7823: 'RGB\nHUI',
+  0x7824: 'RGB\nHUD',
+  0x7825: 'RGB\nSAI',
+  0x7826: 'RGB\nSAD',
+  0x7827: 'RGB\nVAI',
+  0x7828: 'RGB\nVAD',
+  0x7829: 'RGB\nSPI',
+  0x782A: 'RGB\nSPD',
+  0x782B: 'RGB\nM_P',
+  0x782C: 'RGB\nM_B',
+  0x782D: 'RGB\nM_R',
+  0x782E: 'RGB\nM_SW',
+  0x782F: 'RGB\nM_SN',
+  0x7830: 'RGB\nM_K',
+  0x7831: 'RGB\nM_X',
+  0x7832: 'RGB\nM_G',
+  0x7833: 'RGB\nM_T',
+  0x7834: 'RGB\nM_TW',
+
+  // システム制御 (0x7C00-0x7C10)
+  0x7C00: 'Boot',
+  0x7C01: 'Reset',
+  0x7C02: 'Debug',
+  0x7C03: 'EEPROM\nClear',
+
+  // オーディオ (0x7C04-0x7C0B)
+  0x7C04: 'AU\nOn',
+  0x7C05: 'AU\nOff',
+  0x7C06: 'AU\nTOG',
+  0x7C07: 'CLCK\nOn',
+  0x7C08: 'CLCK\nOff',
+  0x7C09: 'CLCK\nTOG',
+  0x7C0A: 'MUS\nOn',
+  0x7C0B: 'MUS\nOff',
+  0x7C0C: 'MUS\nTOG',
+  0x7C0D: 'MUS\nMOD',
+
+  // MIDI (選択的に追加)
+  0x7100: 'MI\nC',
+  0x7101: 'MI\nCs',
+  0x7102: 'MI\nD',
+  0x7103: 'MI\nDs',
+  0x7104: 'MI\nE',
+  0x7105: 'MI\nF',
+  0x7106: 'MI\nFs',
+  0x7107: 'MI\nG',
+  0x7108: 'MI\nGs',
+  0x7109: 'MI\nA',
+  0x710A: 'MI\nAs',
+  0x710B: 'MI\nB',
+  
+  // Unicode Mode (0x7C30-0x7C3A)
+  0x7C30: 'UC\nNext',
+  0x7C31: 'UC\nPrev',
+  0x7C32: 'UC\nMac',
+  0x7C33: 'UC\nLinx',
+  0x7C34: 'UC\nWin',
+  0x7C35: 'UC\nBSD',
+  0x7C36: 'UC\nWinc',
+  0x7C37: 'UC\nEmcs',
+
+  // Dynamic Macro (0x7C50-0x7C57)
+  0x7C50: 'DM\nREC1',
+  0x7C51: 'DM\nREC2',
+  0x7C52: 'DM\nRSTR',
+  0x7C53: 'DM\nPLY1',
+  0x7C54: 'DM\nPLY2',
+
+  // その他のQuantum keycodes
+  0x7C58: 'Leader',
+  0x7C59: 'Lock',
+  0x7C5A: 'OS\nOn',
+  0x7C5B: 'OS\nOff',
+  0x7C5C: 'OS\nTOG',
+  0x7C70: 'Auto\nShft',
+  0x7C78: 'Repeat',
+  0x7C79: 'AltRep',
+
+  // メディアキー (Consumer Page)
+  0xA0: 'Mute',
+  0xA1: 'Vol\nUp',
+  0xA2: 'Vol\nDown',
+  0xA3: 'Next',
+  0xA4: 'Prev',
+  0xA5: 'Stop',
+  0xA6: 'Play',
+  0xA7: 'Eject',
+  0xA8: 'Mail',
+  0xA9: 'Calc',
+  0xAA: 'My\nPC',
+  0xAB: 'WWW\nSrch',
+  0xAC: 'WWW\nHome',
+  0xAD: 'WWW\nBack',
+  0xAE: 'WWW\nFwd',
+  0xAF: 'WWW\nStop',
+  0xB0: 'WWW\nRfsh',
+  0xB1: 'WWW\nFav',
+  0xB2: 'Media\nFF',
+  0xB3: 'Media\nRew',
+  0xB5: 'Bright\nUp',
+  0xB6: 'Bright\nDown',
+
+  // マウスキー
+  0xF0: 'Mouse\nUp',
+  0xF1: 'Mouse\nDown',
+  0xF2: 'Mouse\nLeft',
+  0xF3: 'Mouse\nRight',
+  0xF4: 'Btn1',
+  0xF5: 'Btn2',
+  0xF6: 'Btn3',
+  0xF7: 'Btn4',
+  0xF8: 'Btn5',
+  0xF9: 'Btn6',
+  0xFA: 'Btn7',
+  0xFB: 'Btn8',
+  0xFC: 'Wheel\nUp',
+  0xFD: 'Wheel\nDown',
+  0xFE: 'Wheel\nLeft',
+  0xFF: 'Wheel\nRight',
 };
 
 /** Quantum Keycodes レンジ */
@@ -154,6 +332,18 @@ const QK_TOGGLE_LAYER = 0x5300;   // 0x5300-0x531F: Toggle layer (TG)
 const QK_ONE_SHOT_LAYER = 0x5400; // 0x5400-0x541F: One-shot layer (OSL)
 const QK_ONE_SHOT_MOD = 0x5500;   // 0x5500-0x557F: One-shot mod (OSM)
 const QK_LAYER_TAP_TOGGLE = 0x5800; // 0x5800-0x581F: Layer tap toggle (TT)
+
+/**
+ * キー名を短縮（組み合わせ表示用）
+ * 現在はBackSpaceのみ短縮、他はそのまま
+ */
+function shortenKeyName(keyName: string): string {
+  // BackSpaceのみ短縮（改行を削除してBSpcに）
+  if (keyName === 'Back\nSpace') {
+    return 'BSpc';
+  }
+  return keyName;
+}
 
 /**
  * キーコードを人間が読める形式に変換
@@ -192,9 +382,30 @@ export function convertKeycodeToLabel(keycode: number): string {
     return `OSL(${layer})`;
   }
   
+  // One-Shot Mod (例: OSM(MOD_LSFT))
+  if (keycode >= QK_ONE_SHOT_MOD && keycode < QK_ONE_SHOT_MOD + 0x80) {
+    const mod = keycode - QK_ONE_SHOT_MOD;
+    const modName = getModName(mod);
+    // 複数のモディファイアの場合、+で分割して改行区切りに
+    const mods = modName.split('+');
+    return ['OSM', ...mods].join('\n');
+  }
+  
   if (keycode >= QK_LAYER_TAP_TOGGLE && keycode < QK_LAYER_TAP_TOGGLE + 0x20) {
     const layer = keycode - QK_LAYER_TAP_TOGGLE;
     return `TT(${layer})`;
+  }
+  
+  // Programmable Button (0x7440-0x745F)
+  if (keycode >= 0x7440 && keycode <= 0x745F) {
+    const buttonNum = keycode - 0x7440 + 1;
+    return `PB${buttonNum}`;
+  }
+  
+  // Joystick Button (0x7400-0x741F)
+  if (keycode >= 0x7400 && keycode <= 0x741F) {
+    const buttonNum = keycode - 0x7400;
+    return `JS${buttonNum}`;
   }
   
   // Mod-Tap (例: LCTL_T(KC_ESC))
@@ -203,7 +414,11 @@ export function convertKeycodeToLabel(keycode: number): string {
     const basicKeycode = keycode & 0xFF;
     const modName = getModName(mod);
     const keyName = BASIC_KEYCODES[basicKeycode] || `0x${basicKeycode.toString(16).toUpperCase()}`;
-    return `${modName}_T(${keyName})`;
+    const shortKeyName = shortenKeyName(keyName);
+    // 複数のモディファイアの場合、+で分割
+    const mods = modName.split('+');
+    const modParts = mods.map(m => `${m}_T`);
+    return [...modParts, shortKeyName].join('\n');
   }
   
   // Layer-Tap (例: LT(1, KC_SPC))
@@ -211,7 +426,8 @@ export function convertKeycodeToLabel(keycode: number): string {
     const layer = (keycode >> 8) & 0x0F;
     const basicKeycode = keycode & 0xFF;
     const keyName = BASIC_KEYCODES[basicKeycode] || `0x${basicKeycode.toString(16).toUpperCase()}`;
-    return `LT(${layer},${keyName})`;
+    const shortKeyName = shortenKeyName(keyName);
+    return `LT${layer}\n${shortKeyName}`;
   }
   
   // Modded keycodes (例: LCTL(KC_C))
@@ -220,7 +436,10 @@ export function convertKeycodeToLabel(keycode: number): string {
     const basicKeycode = keycode & 0xFF;
     const modName = getModName(mods);
     const keyName = BASIC_KEYCODES[basicKeycode] || `0x${basicKeycode.toString(16).toUpperCase()}`;
-    return `${modName}(${keyName})`;
+    const shortKeyName = shortenKeyName(keyName);
+    // 複数のモディファイアの場合、+で分割して改行区切りに
+    const modParts = modName.split('+');
+    return [...modParts, shortKeyName].join('\n');
   }
   
   // 未知のキーコードは16進数表記

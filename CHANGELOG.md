@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.1] - 2026-02-11
 
+### Added
+- 日時関係の練習練習を追加:
+
 ### Improved
 - キーマップ表示の改善:
   - 未対応だった特殊キーコードに対応

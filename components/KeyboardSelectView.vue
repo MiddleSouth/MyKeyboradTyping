@@ -84,6 +84,7 @@
           <div class="bg-white p-4 rounded-lg shadow flex justify-center">
             <KeyboardLayoutView 
               :keymapData="rawHIDData" 
+              :layoutDefinition="layoutDefinition"
               :layer="selectedLayer"
               :pressedKeys="getPressedKeys(selectedLayer)"
             />
@@ -137,7 +138,7 @@ const logger = createLogger('KeyboardSelectView')
 
 // Composables
 const { isLoading: isDetecting, requestKeyboardSelection } = useKeyboardDetector()
-const { isLoading, fetchKeymap, rawHIDData } = useKeyboardKeymap()
+const { isLoading, fetchKeymap, rawHIDData, layoutDefinition } = useKeyboardKeymap()
 const { selectedKeyboard, error, clearError } = useKeyboardState()
 const { showOnlyLayer } = useLayerManager(0)
 const { pressKeys, releaseKeys, getPressedKeys } = useKeyHighlight()

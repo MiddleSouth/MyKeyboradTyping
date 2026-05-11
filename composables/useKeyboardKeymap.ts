@@ -2,10 +2,11 @@ import { ref, readonly } from 'vue';
 import type { KeyboardDevice, KeymapData, RawKeymapData } from '../types/keyboard';
 import type { HIDDevice, HIDInputReportEvent, HIDCollectionInfo } from '../types/webhid';
 import { useKeyboardState } from './useKeyboardState';
-import { 
-  VIA_USAGE_PAGE, 
-  VIA_USAGE, 
+import {
+  VIA_USAGE_PAGE,
+  VIA_USAGE,
   VIA_COMMAND,
+  MIN_VIAL_COMPAT_PROTOCOL_VERSION,
   MIN_VIA_PROTOCOL_VERSION,
   VIA_BUFFER_CHUNK_SIZE,
   VIA_REPORT_SIZE
@@ -14,6 +15,8 @@ import { createLogger } from './useLogger';
 import { parseLayerBuffer } from '../utils/keymapParser';
 import KeyboardModel from '../utils/KeyboardModel';
 import { findKeyboardByProductName } from '../utils/keyboardLoader';
+import { fetchVialDefinition } from '../utils/vialDefinitionLoader';
+import type { KeyboardDefinition } from '../utils/keyboardLoader';
 
 const logger = createLogger('KeyboardKeymap');
 
@@ -25,6 +28,8 @@ export function useKeyboardKeymap() {
   const keymapData = ref<KeymapData | null>(null);
   const isLoading = ref(false);
   const rawHIDData = ref<RawKeymapData | null>(null);
+  const layoutDefinition = ref<KeyboardDefinition | null>(null);
+
 
   /**
    * マッチするデバイスから最適なVIA対応デバイスを選択
@@ -39,7 +44,7 @@ export function useKeyboardKeymap() {
 
     // VIA対応のコレクションを持つデバイスを優先的に選択
     let selectedDevice = matchingDevices.find((device) =>
-      device.collections?.some((c) => 
+      device.collections?.some((c) =>
         c.usagePage === VIA_USAGE_PAGE && c.usage === VIA_USAGE
       )
     );
@@ -47,7 +52,7 @@ export function useKeyboardKeymap() {
     // VIA対応デバイスがなければ、outputReportsを持つデバイスを選択
     if (!selectedDevice) {
       selectedDevice = matchingDevices.find((device) =>
-        device.collections?.some((c) => 
+        device.collections?.some((c) =>
           c.outputReports && c.outputReports.length > 0
         )
       );
@@ -79,8 +84,10 @@ export function useKeyboardKeymap() {
   /**
    * 選択されたキーボードからキーマップを取得
    */
+
   async function fetchKeymap(keyboard: KeyboardDevice): Promise<KeymapData | null> {
     isLoading.value = true;
+    layoutDefinition.value = null;
 
     try {
       if (!navigator.hid) {
@@ -124,9 +131,38 @@ export function useKeyboardKeymap() {
       // デバイスが閉じられている場合は開く
       await ensureDeviceOpen(selectedDevice);
 
+      const { reportId } = selectVIACollection(selectedDevice);
+
       // キーマップを取得（VIA互換コマンド）
-      // VIAのキーマップ取得コマンド
-      const keymapRawData = await getKeymapViaVIA(selectedDevice, keyboard);
+      let keymapRawData: RawKeymapData | null = null;
+      let keymapFetchError: unknown = null;
+      try {
+        keymapRawData = await getKeymapViaVIA(selectedDevice, keyboard, reportId);
+      } catch (keymapError) {
+        keymapFetchError = keymapError;
+        logger.warn('キーマップ取得に失敗しました。Vial定義/静的JSONフォールバックを試行します:', keymapError);
+      }
+
+      const vialDefinitionResult = await fetchVialDefinition(selectedDevice, reportId);
+      if (vialDefinitionResult?.json?.layouts?.keymap) {
+        layoutDefinition.value = vialDefinitionResult.json as KeyboardDefinition;
+      } else {
+        layoutDefinition.value = null;
+      }
+
+      if (!keymapRawData) {
+        const fallbackData = await buildLayoutOnlyRawData(selectedDevice, keyboard);
+
+        if (!fallbackData) {
+          throw keymapFetchError instanceof Error
+            ? keymapFetchError
+            : new Error('キーマップ取得に失敗し、静的JSONフォールバックも見つかりませんでした');
+        }
+
+        keymapRawData = fallbackData;
+        logger.warn('レイアウト表示のみのフォールバックモードで続行します（キーコードは取得されていません）');
+      }
+
       rawHIDData.value = keymapRawData;
 
       // 生データを構造化
@@ -182,7 +218,7 @@ export function useKeyboardKeymap() {
       targetCollection = device.collections?.find(
         (c) => c.usagePage === 0x01 && c.usage === 0x06
       );
-      
+
       if (targetCollection) {
         logger.debug('通常のキーボードコレクションを使用（VIAコマンドは送信可能）:', targetCollection);
       } else {
@@ -214,10 +250,10 @@ export function useKeyboardKeymap() {
 
       const listener = (event: HIDInputReportEvent) => {
         const data = event.data;
-        const buffer = new Uint8Array(data.buffer);
-        
+        const buffer = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+
         logger.debug(`レスポンス受信 (${key}):`, Array.from(buffer.slice(0, 10)));
-        
+
         clearTimeout(timeout);
         device.removeEventListener('inputreport', listener);
         resolve(buffer);
@@ -229,23 +265,76 @@ export function useKeyboardKeymap() {
 
   /**
    * VIAプロトコルバージョンを取得
-   * MIN_VIA_PROTOCOL_VERSION（0x0C）未満の場合はエラーをスロー
+   * 0x0C以上: 標準VIAモード
+   * 0x09以上0x0C未満: legacy/Vial互換モード
+   * 0x09未満: 非対応
    */
   async function getProtocolVersion(device: HIDDevice, reportId: number): Promise<number> {
     logger.debug('ステップ 1: プロトコルバージョン確認');
     const versionResponsePromise = createResponsePromise(device, 'version');
     await sendVIACommand(device, [VIA_COMMAND.GET_PROTOCOL_VERSION], reportId);
-    
+
     const versionBuffer = await versionResponsePromise;
     const viaProtocolVersion = (versionBuffer[1] << 8) | versionBuffer[2];
     logger.debug('プロトコルバージョン:', `0x${viaProtocolVersion.toString(16).padStart(4, '0')}`);
-    
-    // Remapと同じく、MIN_VIA_PROTOCOL_VERSION未満は非対応
+
+    if (viaProtocolVersion < MIN_VIAL_COMPAT_PROTOCOL_VERSION) {
+      throw new Error(
+        `VIAプロトコルバージョン 0x${viaProtocolVersion.toString(16).padStart(4, '0')} は対応していません（0x${MIN_VIAL_COMPAT_PROTOCOL_VERSION.toString(16).padStart(4, '0')} 以上が必要）。`
+      );
+    }
+
     if (viaProtocolVersion < MIN_VIA_PROTOCOL_VERSION) {
-      throw new Error(`VIAプロトコルバージョン ${viaProtocolVersion} は対応していません（0x0C以上が必要）。キーボードレイアウトは表示されませんが、タイピング練習は可能です。`);
+      logger.warn(
+        `legacy/Vial-compatible mode を使用します: protocol=0x${viaProtocolVersion.toString(16).padStart(4, '0')}（標準推奨は 0x${MIN_VIA_PROTOCOL_VERSION.toString(16).padStart(4, '0')} 以上）`
+      );
+    } else {
+      logger.debug(
+        `標準VIAモード: protocol=0x${viaProtocolVersion.toString(16).padStart(4, '0')}`
+      );
     }
 
     return viaProtocolVersion;
+  }
+
+  /**
+   * キーマップ取得に失敗した場合に、レイアウト表示専用のRawデータを構築
+   * public/keyboards の定義JSONが見つかった場合のみ返す
+   */
+  async function buildLayoutOnlyRawData(
+    device: HIDDevice,
+    keyboard: KeyboardDevice
+  ): Promise<RawKeymapData | null> {
+    try {
+      const baseURL = typeof window !== 'undefined' && window.location.pathname.startsWith('/MyKeyboradTyping/')
+        ? '/MyKeyboradTyping/'
+        : '/';
+
+      const keyboardDef = await findKeyboardByProductName(keyboard.productName, baseURL);
+      if (!keyboardDef) {
+        logger.warn(`フォールバック用キーボード定義が見つかりません: ${keyboard.productName}`);
+        return null;
+      }
+
+      const matrix = keyboardDef.matrix ?? new KeyboardModel(keyboardDef.layouts.keymap).getMatrixSize();
+      const emptyLayer = Array.from({ length: matrix.rows }, () => Array.from({ length: matrix.cols }, () => 0));
+
+      return {
+        vendorId: device.vendorId,
+        productId: device.productId,
+        productName: device.productName,
+        rows: matrix.rows,
+        cols: matrix.cols,
+        layerCount: 1,
+        keymap_by_layer: {
+          0: emptyLayer,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      logger.error('レイアウト表示フォールバック用データの構築に失敗:', error);
+      return null;
+    }
   }
 
   /**
@@ -256,7 +345,7 @@ export function useKeyboardKeymap() {
     logger.debug('ステップ 2: レイヤー数取得');
     const layerCountResponsePromise = createResponsePromise(device, 'layerCount');
     await sendVIACommand(device, [VIA_COMMAND.DYNAMIC_KEYMAP_GET_LAYER_COUNT], reportId);
-    
+
     try {
       const layerCountBuffer = await layerCountResponsePromise;
       const layerCount = layerCountBuffer[1];
@@ -277,18 +366,18 @@ export function useKeyboardKeymap() {
     try {
       // 環境に応じてbaseURLを取得
       // 開発環境: '/', 本番環境: '/MyKeyboradTyping/'
-      const baseURL = typeof window !== 'undefined' && window.location.pathname.startsWith('/MyKeyboradTyping/') 
+      const baseURL = typeof window !== 'undefined' && window.location.pathname.startsWith('/MyKeyboradTyping/')
         ? '/MyKeyboradTyping/'
         : '/';
-      
+
       // Product nameでキーボード定義を検索
       const keyboardDef = await findKeyboardByProductName(keyboard.productName, baseURL);
-      
+
       if (!keyboardDef) {
         logger.warn(`キーボード定義が見つかりません: ${keyboard.productName}, デフォルト値を使用`);
         return { rows: 10, cols: 7 }; // フォールバック値
       }
-      
+
       // matrixフィールドから取得（KLE標準）
       if (keyboardDef.matrix) {
         logger.debug('マトリクスサイズ（定義から取得）:', {
@@ -298,17 +387,17 @@ export function useKeyboardKeymap() {
         });
         return keyboardDef.matrix;
       }
-      
+
       // matrixフィールドがない場合はレイアウトから自動計算（後方互換性）
       const keyboardModel = new KeyboardModel(keyboardDef.layouts.keymap);
       const matrixSize = keyboardModel.getMatrixSize();
-      
+
       logger.debug('マトリクスサイズ（レイアウトから自動計算）:', {
         keyboard: keyboardDef.name,
         rows: matrixSize.rows,
         cols: matrixSize.cols
       });
-      
+
       return matrixSize;
     } catch (error) {
       logger.error('キーボード定義の読み込みエラー:', error);
@@ -332,16 +421,16 @@ export function useKeyboardKeymap() {
 
     for (let layer = 0; layer < layerCount; layer++) {
       logger.debug(`ステップ ${3 + layer}: レイヤー ${layer} のキーマップ取得`);
-      
+
       // Remapと同じく、バッファを28バイトずつ読み込む
       const totalSize = rows * cols * 2; // 各キーは2バイト
       let offset = layer * totalSize;
       const keymapData: number[] = [];
-      
+
       let remainingSize = totalSize;
       while (remainingSize > 0) {
         const size = Math.min(VIA_BUFFER_CHUNK_SIZE, remainingSize);
-        
+
         const bufferResponsePromise = createResponsePromise(device, `buffer-${layer}-${offset}`);
         await sendVIACommand(device, [
           VIA_COMMAND.DYNAMIC_KEYMAP_GET_BUFFER,
@@ -349,7 +438,7 @@ export function useKeyboardKeymap() {
           offset & 0xff,          // offset low byte
           size                     // size
         ], reportId);
-        
+
         try {
           const bufferData = await bufferResponsePromise;
           // レスポンスの4バイト目からがデータ本体
@@ -364,11 +453,11 @@ export function useKeyboardKeymap() {
             keymapData.push(0);
           }
         }
-        
+
         offset += size;
         remainingSize -= size;
       }
-      
+
       // バイト配列をキーマップに変換
       const layerKeymap = parseLayerBuffer(keymapData, rows, cols);
       keymapByLayer[layer] = layerKeymap;
@@ -403,11 +492,67 @@ export function useKeyboardKeymap() {
   }
 
   /**
+   * legacy/Vial-compatible mode（protocol v9〜v11）用：1キーずつ取得
+   * DYNAMIC_KEYMAP_GET_KEYCODE コマンドで各キーのキーコードを個別に取得
+   */
+  async function fetchAllLayersByKeycode(
+    device: HIDDevice,
+    reportId: number,
+    layerCount: number,
+    rows: number,
+    cols: number
+  ): Promise<{ [layerNumber: number]: number[][] }> {
+    const keymapByLayer: { [layerNumber: number]: number[][] } = {};
+
+    for (let layer = 0; layer < layerCount; layer++) {
+      const layerKeymap: number[][] = [];
+
+      for (let row = 0; row < rows; row++) {
+        const rowKeymap: number[] = [];
+
+        for (let col = 0; col < cols; col++) {
+          const responsePromise = createResponsePromise(
+            device,
+            `keycode-${layer}-${row}-${col}`
+          );
+
+          await sendVIACommand(
+            device,
+            [
+              VIA_COMMAND.DYNAMIC_KEYMAP_GET_KEYCODE,
+              layer,
+              row,
+              col,
+            ],
+            reportId
+          );
+
+          try {
+            const buffer = await responsePromise;
+            const keycode = (buffer[4] << 8) | buffer[5];
+
+            rowKeymap.push(keycode);
+          } catch (err) {
+            rowKeymap.push(0);
+          }
+        }
+
+        layerKeymap.push(rowKeymap);
+      }
+      keymapByLayer[layer] = layerKeymap;
+    }
+
+    return keymapByLayer;
+  }
+
+  /**
    * VIA互換のコマンドでキーマップを取得
    * 
-   * Remapのキーマップ取得フローに基づく実装
+   * protocol version に応じて取得方式を変える：
+   * - v0x0C以上: DYNAMIC_KEYMAP_GET_BUFFER方式（標準VIA）
+   * - v0x09〜v0x0B: DYNAMIC_KEYMAP_GET_KEYCODE方式（legacy/Vial-compatible）
    */
-  async function getKeymapViaVIA(device: HIDDevice, keyboard: KeyboardDevice): Promise<RawKeymapData> {
+  async function getKeymapViaVIA(device: HIDDevice, keyboard: KeyboardDevice, reportId: number): Promise<RawKeymapData> {
     try {
       logger.debug('VIA プロトコルでキーマップ取得を開始');
 
@@ -415,7 +560,7 @@ export function useKeyboardKeymap() {
       const { reportId } = selectVIACollection(device);
 
       // 2. プロトコルバージョンを確認
-      await getProtocolVersion(device, reportId);
+      const viaProtocolVersion = await getProtocolVersion(device, reportId);
 
       // 3. レイヤー数を取得
       const layerCount = await getLayerCount(device, reportId);
@@ -423,8 +568,13 @@ export function useKeyboardKeymap() {
       // 4. マトリクスサイズを取得
       const { rows, cols } = await getMatrixSize(keyboard);
 
-      // 5. 全レイヤーのキーマップデータを取得
-      const keymapByLayer = await fetchAllLayers(device, reportId, layerCount, rows, cols);
+      // 5. 全レイヤーのキーマップデータを取得（protocol version に応じた方式）
+      let keymapByLayer: { [layerNumber: number]: number[][] };
+      if (viaProtocolVersion >= MIN_VIA_PROTOCOL_VERSION) {
+        keymapByLayer = await fetchAllLayers(device, reportId, layerCount, rows, cols);
+      } else {
+        keymapByLayer = await fetchAllLayersByKeycode(device, reportId, layerCount, rows, cols);
+      }
 
       // 6. 結果をまとめる
       return buildRawKeymapData(device, rows, cols, layerCount, keymapByLayer);
@@ -438,8 +588,8 @@ export function useKeyboardKeymap() {
    * 出力レポートでVIAコマンドを送信（方法1）
    */
   async function trySendReport(
-    device: HIDDevice, 
-    reportId: number, 
+    device: HIDDevice,
+    reportId: number,
     dataBuffer: BufferSource
   ): Promise<{ success: boolean; error?: Error }> {
     try {
@@ -456,8 +606,8 @@ export function useKeyboardKeymap() {
    * フィーチャーレポートでVIAコマンドを送信（方法2・フォールバック）
    */
   async function trySendFeatureReport(
-    device: HIDDevice, 
-    reportId: number, 
+    device: HIDDevice,
+    reportId: number,
     dataBuffer: BufferSource
   ): Promise<{ success: boolean }> {
     try {
@@ -544,6 +694,7 @@ export function useKeyboardKeymap() {
     keymapData: readonly(keymapData),
     isLoading: readonly(isLoading),
     rawHIDData: readonly(rawHIDData),
+    layoutDefinition: readonly(layoutDefinition),
     fetchKeymap,
     getRawDataForDisplay,
   };

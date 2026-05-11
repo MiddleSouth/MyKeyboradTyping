@@ -175,6 +175,10 @@ export function useJapaneseTypingJudge(hiraganaText: string): JapaneseTypingJudg
    * 入力された文字を判定
    */
   function judge(inputChar: string): InputResult {
+    const normalizedInputChar = /^[A-Z]$/.test(inputChar)
+      ? inputChar.toLowerCase()
+      : inputChar
+
     // 初回入力時にステータスを変更
     base.startTyping()
     if (base.status.value === 'typing' && currentRomajiIndex.value === 0 && currentRomajiPosition.value === 0) {
@@ -182,12 +186,12 @@ export function useJapaneseTypingJudge(hiraganaText: string): JapaneseTypingJudg
     }
 
     // コンテキストの作成
-    const context = createJudgmentContext(inputChar)
+    const context = createJudgmentContext(normalizedInputChar)
     
     // 完了チェック
     if (!context) {
       logger.warn('すでに完了しています')
-      return createResult(false, '', inputChar)
+      return createResult(false, '', normalizedInputChar)
     }
 
     // 適用可能な戦略を見つけて判定を実行
@@ -199,7 +203,7 @@ export function useJapaneseTypingJudge(hiraganaText: string): JapaneseTypingJudg
     }
 
     const decision = strategy.judge(context)
-    return applyJudgmentDecision(decision, context.expected, inputChar)
+    return applyJudgmentDecision(decision, context.expected, normalizedInputChar)
   }
 
   /**

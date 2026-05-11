@@ -61,6 +61,14 @@ describe('useJapaneseTypingJudge', () => {
       expect(typing.statistics.value.incorrectCount).toBe(1)
       expect(typing.currentRomajiIndex.value).toBe(0)
     })
+
+    it('大文字英字入力でも正解判定される', () => {
+      const typing = useJapaneseTypingJudge('あ')
+      const result = typing.judge('A')
+      expect(result.isCorrect).toBe(true)
+      expect(result.inputChar).toBe('a')
+      expect(typing.isCompleted.value).toBe(true)
+    })
   })
 
   describe('パターン切り替え', () => {
@@ -141,6 +149,22 @@ describe('useJapaneseTypingJudge', () => {
   })
 
   describe('促音（っ）の処理', () => {
+    it('っ 単体は ltu で正解', () => {
+      const typing = useJapaneseTypingJudge('っ')
+      typing.judge('l')
+      typing.judge('t')
+      typing.judge('u')
+      expect(typing.isCompleted.value).toBe(true)
+    })
+
+    it('っ 単体は xtu でも正解', () => {
+      const typing = useJapaneseTypingJudge('っ')
+      typing.judge('x')
+      typing.judge('t')
+      typing.judge('u')
+      expect(typing.isCompleted.value).toBe(true)
+    })
+
     it('きって → kitte（子音重ね）', () => {
       const typing = useJapaneseTypingJudge('きって')
       typing.judge('k')

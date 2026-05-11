@@ -39,7 +39,11 @@ export class SpecialCharStrategy implements JudgmentStrategy {
  */
 export class SokuonStrategy implements JudgmentStrategy {
   canHandle(context: JudgmentContext): boolean {
-    return context.hiragana === 'っ' && context.currentRomajiPosition === 0
+    // 「次文字の子音を1文字で打つ」促音ショートカット時のみこの戦略を適用
+    // 単体「っ」や母音前の「っ」は romaji が "ltu" 等になるため通常戦略に委譲する
+    return context.hiragana === 'っ'
+      && context.currentRomajiPosition === 0
+      && context.romaji.length === 1
   }
 
   judge(context: JudgmentContext): JudgmentDecision {

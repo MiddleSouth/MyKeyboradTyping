@@ -4,11 +4,13 @@ import type { RawKeymapData } from '../types/keyboard'
 import { convertKeycodeToLabel } from '../utils/keycodeConverter'
 import KeyboardModel from '../utils/KeyboardModel'
 import type KeyModel from '../utils/KeyModel'
+import type { KeyboardDefinition } from '../utils/keyboardLoader'
 import { findKeyboardByProductName } from '../utils/keyboardLoader'
 import { getBaseURL } from '../utils/baseUrl'
 
 interface Props {
   keymapData: RawKeymapData | null
+  layoutDefinition?: KeyboardDefinition | null
   layer?: number
   pressedKeys?: Set<string> // "row,col" の形式
 }
@@ -34,7 +36,7 @@ async function loadKeyboardDefinition() {
     // ベースURLを取得
     const baseURL = getBaseURL()
     
-    const keyboardDef = await findKeyboardByProductName(props.keymapData.productName, baseURL)
+    const keyboardDef = props.layoutDefinition ?? await findKeyboardByProductName(props.keymapData.productName, baseURL)
     
     if (!keyboardDef) {
       console.warn(`キーボード定義が見つかりません: ${props.keymapData.productName}`)
@@ -52,7 +54,7 @@ async function loadKeyboardDefinition() {
 }
 
 // keymapDataが変更されたらレイアウトを再読み込み
-watch(() => props.keymapData, () => {
+watch(() => [props.keymapData, props.layoutDefinition], () => {
   loadKeyboardDefinition()
 }, { immediate: true })
 
